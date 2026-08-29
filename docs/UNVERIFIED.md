@@ -6,7 +6,11 @@ safe default I used. None is a silent guess.
 1. **Claude 5 model ids inside Hermes.** Hermes docs only show `claude-sonnet-4-6`
    for native Anthropic and list no Claude 5 or Haiku id in the model catalog.
    Default: `claude-opus-5` / `claude-sonnet-5` / `claude-haiku-4-5`, the exact
-   Anthropic API ids. Check on first boot: `railway ssh --service eng -- hermes model`.
+   Anthropic API ids. **Half-closed 2026-08-29:** the ids are confirmed correct
+   on the Anthropic side - `claude-opus-5` ($5/$25 per MTok), `claude-sonnet-5`
+   ($2/$10), `claude-haiku-4-5` ($1/$5), no date suffixes. What remains open is
+   only whether Hermes passes them through or validates against its own catalog.
+   Check on first boot: `railway ssh --service eng -- hermes model`.
    If Hermes validates against a catalog and rejects them, the fallback is
    `model.provider: openrouter` with `anthropic/claude-opus-5`, which needs an
    OpenRouter key.
