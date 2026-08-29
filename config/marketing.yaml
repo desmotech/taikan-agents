@@ -1,0 +1,26 @@
+# marketing - Hebrew content drafts. Model: Claude Sonnet 5. No external tools.
+# Shared base: keys verified against the Hermes docs (see docs/RESEARCH.md).
+# Secrets are never here. They come from Railway Variables via ${HERMES_HOME}/.env
+# and the process environment. ${VAR} in mcp_servers.*.headers resolves from both.
+
+timezone: "Asia/Jerusalem"
+
+terminal:
+  backend: local
+  cwd: /data/workspace
+  timeout: 180
+
+compression:
+  enabled: true
+  threshold: 0.85
+
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+
+cron:
+  wrap_response: false
+
+model:
+  provider: anthropic
+  default: claude-sonnet-5

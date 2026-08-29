@@ -198,6 +198,30 @@ if [[ -z "${TELEGRAM_ALLOWED_USERS:-}${DISCORD_ALLOWED_USERS:-}${SLACK_ALLOWED_U
   fi
 fi
 
+# taikan-agents: Git is the source of truth for identity and config.
+# souls/$BOT.md -> SOUL.md and config/$BOT.yaml -> config.yaml are overwritten on
+# every boot. Nothing else under HERMES_HOME is touched (memories, skills,
+# sessions, cron, state.db, auth.json all live on the volume and survive).
+BOT_ASSETS_DIR="${BOT_ASSETS_DIR:-/app}"
+if [[ -z "${BOT:-}" ]]; then
+  echo "[bootstrap] ERROR: BOT is unset. Set BOT to one of: $(ls "${BOT_ASSETS_DIR}/souls" 2>/dev/null | sed 's/\.md$//' | tr '\n' ' ')" >&2
+  exit 1
+fi
+BOT_SOUL="${BOT_ASSETS_DIR}/souls/${BOT}.md"
+BOT_CONFIG="${BOT_ASSETS_DIR}/config/${BOT}.yaml"
+if [[ ! -f "$BOT_SOUL" ]]; then
+  echo "[bootstrap] ERROR: ${BOT_SOUL} does not exist (BOT=${BOT})." >&2
+  exit 1
+fi
+if [[ ! -f "$BOT_CONFIG" ]]; then
+  echo "[bootstrap] ERROR: ${BOT_CONFIG} does not exist (BOT=${BOT})." >&2
+  exit 1
+fi
+echo "[bootstrap] bot=${BOT} commit=${RAILWAY_GIT_COMMIT_SHA:-unknown} hermes_ref=${HERMES_GIT_REF:-unknown}"
+cp -f "$BOT_SOUL" "${HERMES_HOME}/SOUL.md"
+cp -f "$BOT_CONFIG" "$CONFIG_FILE"
+echo "[bootstrap] Installed SOUL.md and config.yaml from Git for bot=${BOT}"
+
 echo "[bootstrap] Starting Hermes gateway..."
 unset MESSAGING_CWD
 exec hermes gateway

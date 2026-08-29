@@ -1,0 +1,30 @@
+# ops - infrastructure watchdog. Model: Claude Haiku 4.5.
+# Checks run through the terminal tool with curl / gh / aws-cli-style calls
+# against GitHub, Sentry, Railway and R2. Tokens arrive as environment variables:
+# GITHUB_TOKEN, SENTRY_AUTH_TOKEN, RAILWAY_API_TOKEN, R2_ACCESS_KEY_ID,
+# R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BACKUP_BUCKET (set in Railway).
+# Shared base: keys verified against the Hermes docs (see docs/RESEARCH.md).
+# Secrets are never here. They come from Railway Variables via ${HERMES_HOME}/.env
+# and the process environment. ${VAR} in mcp_servers.*.headers resolves from both.
+
+timezone: "Asia/Jerusalem"
+
+terminal:
+  backend: local
+  cwd: /data/workspace
+  timeout: 180
+
+compression:
+  enabled: true
+  threshold: 0.85
+
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+
+cron:
+  wrap_response: false
+
+model:
+  provider: anthropic
+  default: claude-haiku-4-5
