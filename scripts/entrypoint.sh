@@ -207,6 +207,24 @@ if [[ -z "${BOT:-}" ]]; then
   echo "[bootstrap] ERROR: BOT is unset. Set BOT to one of: $(ls "${BOT_ASSETS_DIR}/souls" 2>/dev/null | sed 's/\.md$//' | tr '\n' ' ')" >&2
   exit 1
 fi
+if [[ "$BOT" == "release" ]]; then
+  [[ -n "${TAIKAN_RELEASE_API_URL:-}" && -n "${TAIKAN_RELEASE_ASSISTANT_TOKEN:-}" ]] || {
+    echo "[bootstrap] ERROR: release bot requires TAIKAN_RELEASE_API_URL and TAIKAN_RELEASE_ASSISTANT_TOKEN." >&2
+    exit 1
+  }
+  for key in $(compgen -e); do
+    case "$key" in
+      EXPO_TOKEN|APPLE_*|ASC_*|GOOGLE_*|GCP_*|FIREBASE_*|GITHUB_TOKEN|GH_TOKEN|DATABASE_URL|PGPASSWORD|POSTGRES_*|RAILWAY_API_TOKEN|RAILWAY_TOKEN|R2_*|CLOUDFLARE_*|AWS_*|SENTRY_*|LINEAR_*|POSTHOG_*)
+        if [[ -n "${!key:-}" ]]; then
+          echo "[bootstrap] ERROR: release bot refuses unexpected privileged variable ${key}." >&2
+          exit 1
+        fi
+        ;;
+    esac
+  done
+  append_if_set TAIKAN_RELEASE_API_URL
+  append_if_set TAIKAN_RELEASE_ASSISTANT_TOKEN
+fi
 BOT_SOUL="${BOT_ASSETS_DIR}/souls/${BOT}.md"
 BOT_CONFIG="${BOT_ASSETS_DIR}/config/${BOT}.yaml"
 if [[ ! -f "$BOT_SOUL" ]]; then

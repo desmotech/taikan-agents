@@ -1,0 +1,24 @@
+# Restricted branded-app release status bot. No MCP servers or infrastructure tools.
+timezone: "Asia/Jerusalem"
+
+terminal:
+  backend: local
+  cwd: /app
+  timeout: 45
+
+compression:
+  enabled: true
+  threshold: 0.85
+
+memory:
+  memory_enabled: true
+  user_profile_enabled: false
+
+cron:
+  wrap_response: false
+
+model:
+  provider: anthropic
+  default: claude-haiku-4-5
+
+mcp_servers: {}

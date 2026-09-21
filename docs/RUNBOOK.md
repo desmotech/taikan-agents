@@ -56,6 +56,28 @@ railway ssh --service scout -- hermes cron create "0 9 * * 0" \
   --name "weekly-report" --deliver telegram
 ```
 
+### Release status monitor
+
+Deploy with `scripts/bootstrap.sh release`. The only non-common variables are
+`TAIKAN_RELEASE_API_URL` and an opaque `TAIKAN_RELEASE_ASSISTANT_TOKEN` minted
+by the backend with read/preflight/nudge scope and an organization allowlist.
+Do not copy credentials from any other bot into this service; the entrypoint
+refuses Expo, store, signing, GitHub, database, and infrastructure credentials.
+
+Register a read-only monitor if desired:
+
+```
+railway ssh --service release -- hermes cron create "*/15 * * * *" \
+  "Monitor branded-app releases using release-client.py list. Report only status changes and actionable owner-safe blockers. Never execute an operation. If nothing changed reply exactly: [SILENT]." \
+  --name "release-status-monitor" --deliver telegram
+```
+
+Telegram can never grant store-review or public-release approval. The bot may
+only nudge an already-approved internal-upload operation after an explicit
+human request; the backend rechecks the stored approval and dispatches the
+protected workflow. Store review and public release remain manual console
+actions recorded by an administrator.
+
 Manage: `railway ssh --service <bot> -- hermes cron list|pause <id>|resume <id>|run <id>|remove <id>`.
 
 ## Logs and a stuck gateway

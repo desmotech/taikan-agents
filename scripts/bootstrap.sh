@@ -105,6 +105,8 @@ case "$BOT" in
            set_secret R2_ACCESS_KEY_ID "R2_ACCESS_KEY_ID"; set_secret R2_SECRET_ACCESS_KEY "R2_SECRET_ACCESS_KEY"
            set_plain R2_ENDPOINT "R2_ENDPOINT"; set_plain R2_BACKUP_BUCKET "R2_BACKUP_BUCKET";;
   analyst) set_secret POSTHOG_API_KEY "POSTHOG_API_KEY (personal API key, read scopes)";;
+  release) set_plain TAIKAN_RELEASE_API_URL "TAIKAN_RELEASE_API_URL (https://api.taikan.fit)"
+           set_secret TAIKAN_RELEASE_ASSISTANT_TOKEN "TAIKAN_RELEASE_ASSISTANT_TOKEN (backend-scoped, read/preflight/nudge only)";;
 esac
 
 log "Source: GitHub $GITHUB_REPO@$GIT_BRANCH (auto-deploy on push)"

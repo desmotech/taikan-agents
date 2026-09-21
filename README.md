@@ -22,13 +22,14 @@ is never touched.
 | `ops` | Claude Haiku 4.5 | daily quota + backup watchdog, alerts on threshold only | scaffold |
 | `scout` | Claude Sonnet 5 | weekly competitor + industry report | scaffold |
 | `analyst` | Claude Opus 5 | PostHog instrumentation quality, aggregate only | scaffold |
+| `release` | Claude Haiku 4.5 | branded-app status, owner-safe preflight, and approved-operation nudge | available |
 
 ## Layout
 
 ```
 souls/      one SOUL.md per agent          -> ${HERMES_HOME}/SOUL.md
 config/     one config.yaml per agent      -> ${HERMES_HOME}/config.yaml
-scripts/    bootstrap.sh deploy.sh logs.sh  + the fork's entrypoint.sh
+scripts/    bootstrap/deploy/logs plus restricted release API client and entrypoint
 docs/       RESEARCH.md RUNBOOK.md UNVERIFIED.md
 Dockerfile  upstream's, plus COPY souls/ and config/
 ```

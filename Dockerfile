@@ -46,8 +46,8 @@ COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /opt/hermes-agent /opt/hermes-agent
 
 WORKDIR /app
-COPY scripts/entrypoint.sh /app/scripts/entrypoint.sh
-RUN chmod +x /app/scripts/entrypoint.sh
+COPY scripts/entrypoint.sh scripts/release-client.py /app/scripts/
+RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/release-client.py
 # taikan-agents: per-bot identity and config, selected at boot by $BOT
 COPY souls /app/souls
 COPY config /app/config
