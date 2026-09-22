@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Merging/redeploying must never silently reactivate an agent after an incident.
+if [[ "${TAIKAN_AGENT_ENABLED:-false}" != true ]]; then
+  echo "[bootstrap] Agent disabled. Owner must explicitly set TAIKAN_AGENT_ENABLED=true after cost review."
+  exit 0
+fi
+
 export HERMES_HOME="${HERMES_HOME:-/data/.hermes}"
 export HOME="${HOME:-/data}"
 LEGACY_MESSAGING_CWD="${MESSAGING_CWD:-/data/workspace}"
@@ -14,6 +20,16 @@ DEFAULT_TERMINAL_CWD="${TERMINAL_CWD:-${LEGACY_MESSAGING_CWD}}"
 # A directory created in the container is ephemeral even when named /data.
 if [[ -n "${RAILWAY_ENVIRONMENT_ID:-}" && "${RAILWAY_VOLUME_MOUNT_PATH:-}" != /data ]]; then
   echo "[bootstrap] ERROR: Attach a persistent Railway volume at /data before starting this agent." >&2
+  exit 1
+fi
+
+# The supervisor retains the real provider key. The child only sees a local
+# gateway credential, so the managed key cannot take an unmetered SDK route.
+if [[ "${1:-}" != --guarded ]]; then
+  exec python3 "$(dirname "$0")/cost_guard.py" "$0"
+fi
+if [[ "${ANTHROPIC_API_KEY:-}" != taikan-local-* || "${ANTHROPIC_BASE_URL:-}" != http://127.0.0.1:* ]]; then
+  echo "[bootstrap] ERROR: Guarded startup requires the cost supervisor." >&2
   exit 1
 fi
 
@@ -178,7 +194,7 @@ echo "[bootstrap] Writing runtime env to ${ENV_FILE}"
 } > "$ENV_FILE"
 
 for key in \
-  OPENROUTER_API_KEY OPENAI_API_KEY OPENAI_BASE_URL ANTHROPIC_API_KEY ANTHROPIC_TOKEN GOOGLE_API_KEY GEMINI_API_KEY XAI_API_KEY DEEPSEEK_API_KEY DASHSCOPE_API_KEY KIMI_API_KEY GLM_API_KEY HF_TOKEN AI_GATEWAY_API_KEY MINIMAX_API_KEY COPILOT_GITHUB_TOKEN LLM_MODEL HERMES_INFERENCE_PROVIDER HERMES_PORTAL_BASE_URL NOUS_INFERENCE_BASE_URL HERMES_NOUS_MIN_KEY_TTL_SECONDS HERMES_DUMP_REQUESTS \
+  OPENROUTER_API_KEY OPENAI_API_KEY OPENAI_BASE_URL ANTHROPIC_API_KEY ANTHROPIC_BASE_URL ANTHROPIC_TOKEN GOOGLE_API_KEY GEMINI_API_KEY XAI_API_KEY DEEPSEEK_API_KEY DASHSCOPE_API_KEY KIMI_API_KEY GLM_API_KEY HF_TOKEN AI_GATEWAY_API_KEY MINIMAX_API_KEY COPILOT_GITHUB_TOKEN LLM_MODEL HERMES_INFERENCE_PROVIDER HERMES_PORTAL_BASE_URL NOUS_INFERENCE_BASE_URL HERMES_NOUS_MIN_KEY_TTL_SECONDS HERMES_DUMP_REQUESTS \
   SLACK_BOT_TOKEN SLACK_APP_TOKEN SLACK_ALLOWED_USERS SLACK_ALLOW_ALL_USERS SLACK_HOME_CHANNEL SLACK_HOME_CHANNEL_NAME \
   GATEWAY_ALLOW_ALL_USERS API_SERVER_ENABLED API_SERVER_KEY API_SERVER_PORT API_SERVER_HOST API_SERVER_MODEL_NAME \
   FIRECRAWL_API_KEY NOUS_API_KEY BROWSERBASE_API_KEY BROWSERBASE_PROJECT_ID BROWSERBASE_PROXIES BROWSERBASE_ADVANCED_STEALTH BROWSER_SESSION_TIMEOUT BROWSER_INACTIVITY_TIMEOUT FAL_KEY ELEVENLABS_API_KEY VOICE_TOOLS_OPENAI_KEY \
@@ -236,8 +252,9 @@ fi
 echo "[bootstrap] bot=${BOT} commit=${RAILWAY_GIT_COMMIT_SHA:-unknown} hermes_ref=${HERMES_GIT_REF:-unknown}"
 cp -f "$BOT_SOUL" "${HERMES_HOME}/SOUL.md"
 cp -f "$BOT_CONFIG" "$CONFIG_FILE"
+python3 "$(dirname "$0")/runtime_policy.py" prepare "$CONFIG_FILE"
 echo "[bootstrap] Installed SOUL.md and config.yaml from Git for bot=${BOT}"
 
 echo "[bootstrap] Starting Hermes gateway..."
 unset MESSAGING_CWD
-exec hermes gateway
+exec python3 "$(dirname "$0")/runtime_policy.py" gateway

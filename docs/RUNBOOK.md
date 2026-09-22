@@ -1,5 +1,11 @@
 # Runbook
 
+> **Cost incident — 2026-09-22:** Eng is stopped and its key revoked.
+> Agent startup now defaults off. Read [cost controls](COST-CONTROLS.md) before
+> any activation. Automatic cron dispatch and background reviews are disabled;
+> older scheduling instructions below do not enable them.
+
+
 For the founder. Every command was checked against `railway --help` (5.45.7)
 or the Hermes docs; see `RESEARCH.md` for sources.
 
@@ -196,7 +202,9 @@ is thrown away on the next deploy and is not what Git says you run. Instead:
 
 1. Pick a tag from https://github.com/NousResearch/hermes-agent/releases.
 2. Update the Dockerfile's `HERMES_GIT_REF` default, `scripts/bootstrap.sh`, and
-   `.env.example` together. Commit and push after approval; CI builds the new
+   `.env.example` together. Update the verified commit assertion in Dockerfile
+   and scripts/validate.py, then pass scripts/verify_runtime.py in the image.
+   Commit and push after approval; CI builds the new
    runtime before Railway deploys it. Remove any old Railway ref override so
    the service uses the tested Dockerfile default.
 3. After it boots: `railway ssh --service eng -- hermes config check`, and if it
@@ -209,17 +217,17 @@ service: `railway ssh --service <bot> -- hermes <cmd>`.
 
 ## Cost per service, and stopping one
 
-Railway meters RAM at ~$10/GB-month and CPU at ~$20/vCPU-month by the minute,
-volume at $0.15/GB-month. A Hermes gateway idles at a few hundred MB and near
-zero CPU, so expect roughly **$3-8/month per service** in compute, plus the
-volume (under $1), plus the Hobby plan's $5 base which covers the first $5.
-Model spend is separate and dominates: Opus 5 is $5/$25 per million input/output
-tokens, Sonnet 5 $2/$10, Haiku 4.5 $1/$5. A daily cron on Opus that reads a lot
-of Sentry can cost more than the service hosting it. Watch it:
-`railway usage --json` and the Anthropic console. Set a hard cap once:
-`railway usage limit set --target workspace --soft 20 --hard 40`.
+Model accounting is bounded by the local $2/day and $10 total gate described
+in [COST-CONTROLS.md](COST-CONTROLS.md). These are conservative accounting
+limits; verify an independent provider workspace spending limit before
+reactivation. Railway compute/storage and other paid services are separate.
 
-Stop paying for one service, keep its memory: `railway scale --service scout eu-west=0`
-(use the region shown in the dashboard). The volume still bills.
-Remove it entirely: `railway service delete --service scout --environment production --yes`,
-then `railway volume list` and `railway volume delete --volume <id> --yes`.
+To stop eng in Railway: **taikan-agents → eng → Deployments → active
+ deployment → ⋮ → Remove**. Wait for Removed. Keep the service and its volume.
+Disconnect the GitHub source if future pushes must not trigger a deployment.
+Revoke the agent's dedicated provider key if spend is still at risk. The new
+entrypoint also defaults off unless `TAIKAN_AGENT_ENABLED=true`.
+
+Volume storage continues to bill while the process is stopped. Do not delete
+it: it holds evidence, memory, OAuth state and the persistent spending ledger.
+See [Railway deployment actions](https://docs.railway.com/deployments/deployment-actions).

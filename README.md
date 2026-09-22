@@ -1,5 +1,11 @@
 # taikan-agents
 
+> **Cost incident — 2026-09-22:** Eng is stopped and its key revoked.
+> Agent startup now defaults off. Read [cost controls](docs/COST-CONTROLS.md) before
+> any activation. Automatic cron dispatch and background reviews are disabled;
+> older scheduling instructions below do not enable them.
+
+
 Source of truth for Taikan's always-on AI agents. Each agent is a
 [Hermes Agent](https://hermes-agent.nousresearch.com/) instance running a
 Claude model on Railway, one service per agent, with Slack as the human
@@ -17,12 +23,12 @@ is never touched.
 
 | bot | model | job | status |
 |---|---|---|---|
-| `eng` | Claude Opus 5 | Lead architect and engineer; stability, on-call, performance; Slack wingman | deployed; activation verification in progress |
-| `product` | Claude Opus 5 | CPO across Taikan: vision, priorities, research, risk, specs, and outcomes | soul/config drafted; not deployed |
+| `eng` | Claude Sonnet 5 | Lead architect and engineer; stability, on-call, performance; Slack wingman | stopped after cost incident; guarded changes pending |
+| `product` | Claude Sonnet 5 | CPO across Taikan: vision, priorities, research, risk, specs, and outcomes | soul/config drafted; not deployed |
 | `marketing` | Claude Sonnet 5 | Hebrew launch post drafts, never posts | scaffold |
 | `ops` | Claude Haiku 4.5 | daily quota + backup watchdog, alerts on threshold only | scaffold |
 | `scout` | Claude Sonnet 5 | weekly competitor + industry report | scaffold |
-| `analyst` | Claude Opus 5 | PostHog instrumentation quality, aggregate only | scaffold |
+| `analyst` | Claude Sonnet 5 | PostHog instrumentation quality, aggregate only | scaffold |
 | `release` | Claude Haiku 4.5 | branded-app status, owner-safe preflight, and approved-operation nudge | available |
 
 ## Layout
@@ -35,8 +41,8 @@ docs/       RESEARCH.md RUNBOOK.md UNVERIFIED.md
 Dockerfile  upstream's, plus COPY souls/ and config/
 ```
 
-Cron jobs are not declarative in Hermes; they are registered once per service
-over Railway SSH. The exact commands are in [docs/RUNBOOK.md](docs/RUNBOOK.md).
+Automatic cron dispatch is disabled. Existing schedules remain stored for
+inspection; [cost controls](docs/COST-CONTROLS.md) govern any reactivation.
 
 ## Daily use
 
@@ -45,8 +51,8 @@ syntax, agent YAML and soul assets, gateway startup/access controls, and the
 Docker image with its Slack, MCP, and Anthropic dependencies. No production
 credentials are needed in GitHub.
 
-Link Railway's `eng` service to this repo's `main` branch and enable **Wait
-for CI** in service settings. Railway builds and deploys after CI succeeds.
+After explicit reactivation approval, link Railway's `eng` service to this
+repo's `main` branch and enable **Wait for CI** in service settings. Railway builds and deploys after CI succeeds.
 See [the deployment setup](docs/RUNBOOK.md#github-ci-and-railway-deployment).
 
 ```

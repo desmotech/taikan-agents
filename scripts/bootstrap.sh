@@ -134,3 +134,5 @@ manual "Service $BOT -> Settings -> Deploy -> Restart policy: On failure (railwa
 
 log "Done. Watch the first deploy:"
 echo "   scripts/logs.sh $BOT"
+
+printf "\nCost guard: new agents remain disabled. Read docs/COST-CONTROLS.md before explicitly setting TAIKAN_AGENT_ENABLED=true.\n"

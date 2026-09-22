@@ -1,5 +1,11 @@
 # product: Taikan's CPO
 
+> **Cost incident — 2026-09-22:** Eng is stopped and its key revoked.
+> Agent startup now defaults off. Read [cost controls](COST-CONTROLS.md) before
+> any activation. Automatic cron dispatch and background reviews are disabled;
+> older scheduling instructions below do not enable them.
+
+
 `product` covers all of Taikan: vision, portfolio priorities, customer problems,
 research, risk, specifications, and outcome reviews. Saar makes company
 commitments; product gives him an evidence-backed recommendation he can act on
@@ -67,7 +73,7 @@ customer evidence with the founder's hypothesis or public competitor copy.
 
 ## Runtime and access
 
-[config/product.yaml](../config/product.yaml) uses `claude-opus-5` through
+[config/product.yaml](../config/product.yaml) uses `claude-sonnet-5` through
 Anthropic, matching eng's configured model, with:
 
 | Access | Purpose | Initial scope |
@@ -99,6 +105,7 @@ Live compatibility and credentials still require testing in the deployed image.
 
 ## First deployment and first conversation
 
+First complete [cost reactivation prerequisites](COST-CONTROLS.md#verification-before-reactivation).
 When Saar authorizes deployment, create a service named `product` in the
 existing `taikan-agents` project, using the same GitHub repo/root and main
 branch. Set `BOT=product`, use one replica, attach its own `/data` volume, and
@@ -125,7 +132,9 @@ read from each target account, an authorized Slack reply, rejection of a
 non-owner, and public web search plus page extraction. If a capability is
 unavailable, report it as an activation gap.
 
-Then give the agent this first assignment:
+After a small calibration task, build knowledge over several bounded turns.
+Start with the docs index and core vision; expand only on Saar's next request.
+The eventual assignment is:
 
 > Build your initial map of Taikan. Resolve source revisions, inventory the
 > docs, read the core vision/personas/architecture and feature overviews in

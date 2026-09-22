@@ -8,12 +8,20 @@ class EntrypointTests(unittest.TestCase):
         self.driver = EntrypointDriver()
         self.addCleanup(self.driver.close)
 
+    def test_agent_stays_off_until_owner_enables_it(self):
+        result = self.driver.run(TAIKAN_AGENT_ENABLED=None)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Agent disabled", result.stdout)
+        self.assertFalse(self.driver.launched())
+        self.assertFalse(self.driver.state_exists(".env"))
+
     def test_slack_starts_and_loads_git_assets(self):
         result = self.driver.run()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(self.driver.launched())
         self.assertEqual(self.driver.read_state("SOUL.md"), self.driver.source_asset("souls/eng.md"))
-        self.assertEqual(self.driver.read_state("config.yaml"), self.driver.source_asset("config/eng.yaml"))
+        self.assertTrue(self.driver.config_matches_asset())
+        self.assertNotIn("fake-provider", self.driver.read_state(".env"))
         for secret in ("fake-provider", "fake-slack-bot", "fake-slack-app"):
             self.assertNotIn(secret, result.stdout + result.stderr)
 

@@ -3,23 +3,21 @@
 What to configure at platform.claude.com for the agent fleet, and why. Workspace
 `taikan` was created 2026-08-29 and the first API key minted then.
 
-Nothing here is a prerequisite for `scripts/bootstrap.sh eng` except having one
-API key. The rest is cost and blast-radius control - do it before the fleet
-grows past one agent.
+Eng is stopped following the 2026-09-22 credit-exhaustion incident. Read
+[COST-CONTROLS.md](COST-CONTROLS.md). The new local proxy has conservative
+$2/day and $10 total accounting limits, but an independent provider spending
+limit must be verified before reactivation.
 
-## 1. Spend limit on the `taikan` workspace  (highest value)
+## 1. Verify an independent provider spending limit
 
-Manage -> Limits / Billing. Set a monthly cap.
+Set the agent workspace's spending limit in the Anthropic console. Verify the
+actual control available for this account before minting a replacement key.
+Do not substitute a rate limit for a spending limit: rate limits can still
+consume the entire credit balance over time. Alerting is not enforcement.
 
-The failure mode that costs real money is not normal use - a 07:30 digest is
-cents a day. It is a loop: an agent retrying a failing tool, or a webhook storm
-after a bad deploy waking the agent dozens of times in a minute. These agents
-are always-on and will eventually wake while nobody is watching. A workspace cap
-turns that from a bill into a 429.
-
-UNVERIFIED: which spend controls the current plan exposes in the UI. If there is
-no monthly cap available, set the workspace **rate limits** low enough to act as
-the backstop instead.
+No daily digest or investigation has a guaranteed cost based on its name or
+schedule. Measure input/output/cache usage for a bounded real task before
+allowing unattended work. No provider limit has been changed by this patch.
 
 ## 2. One workspace-scoped API key per agent
 
@@ -54,21 +52,20 @@ than a dashboard nobody opens.
 ## Key handling
 
 The key is typed at the hidden prompt in `scripts/bootstrap.sh` and piped to
-`railway variable set --stdin`. It must never be written to a file, pasted into
-a chat, echoed, or committed. If one leaks, revoke it in the Console first and
+`railway variable set --stdin`. The real provider key stays in the cost supervisor; Hermes receives a
+local proxy credential. It must never be pasted into chat, echoed, or committed. If one leaks, revoke it in the Console first and
 rotate the Railway variable second - in that order.
 
-## Cost calibration (list prices, 2026-08)
+## Cost calibration (standard API prices, 2026-09-22)
 
 | Model              | Id                 | Input $/MTok | Output $/MTok | Used by            |
 |--------------------|--------------------|--------------|---------------|--------------------|
-| Claude Opus 5      | `claude-opus-5`    | $5           | $25           | eng, analyst       |
-| Claude Sonnet 5    | `claude-sonnet-5`  | $2           | $10           | marketing, scout   |
-| Claude Haiku 4.5   | `claude-haiku-4-5` | $1           | $5            | ops                |
+| Claude Sonnet 5    | `claude-sonnet-5`  | $2           | $10           | eng, product, analyst, marketing, scout |
+| Claude Haiku 4.5   | `claude-haiku-4-5` | $1           | $5            | ops, release, auxiliary work |
 
-These ids are confirmed correct on the Anthropic side, with no date suffixes.
-Whether Hermes passes them through unchanged is still open - see
-`docs/UNVERIFIED.md` #1.
+The gate admits only these reviewed model IDs. Real Hermes client routing is
+checked offline in CI; a paid task and provider-billing reconciliation remain
+activation checks. See [pricing](https://platform.claude.com/docs/en/about-claude/pricing).
 
 Railway adds roughly $3-8/month per service for the container, plus $0.15/GB for
 the volume, whether or not the agent does anything. That idle cost is the price

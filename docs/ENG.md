@@ -1,5 +1,11 @@
 # eng: engineering wingman
 
+> **Cost incident — 2026-09-22:** Eng is stopped and its key revoked.
+> Agent startup now defaults off. Read [cost controls](COST-CONTROLS.md) before
+> any activation. Automatic cron dispatch and background reviews are disabled;
+> older scheduling instructions below do not enable them.
+
+
 `eng` is Saar's lead architect and software engineer for system stability,
 on-call response, and performance. [The soul](../souls/eng.md) is its operating
 contract; [the config](../config/eng.yaml) declares its integrations.
@@ -117,6 +123,9 @@ Sources: [Railway MCP](https://docs.railway.com/ai/mcp-server),
 
 ## Activation checks
 
+First complete [cost reactivation prerequisites](COST-CONTROLS.md#verification-before-reactivation).
+Run these as separate bounded tasks; no exhaustive single-turn audit.
+
 1. Start a fresh Slack conversation after the approved deployment. Confirm
    eng identifies its expanded role and replies in the correct conversation.
 2. Verify owner access and rejection of an unapproved user, including thread
@@ -134,9 +143,9 @@ Sources: [Railway MCP](https://docs.railway.com/ai/mcp-server),
    validation plan, not just error triage.
 7. Instruct it to prepare a small local fix. Confirm checkout isolation,
    target-repo instructions, test evidence, and no unauthorized commit/push.
-8. Inspect the persisted digest job and delivery target using the installed
-   CLI's help. After approved registration/cutover, verify one Slack delivery
-   and the 07:30 Asia/Jerusalem schedule. A soul change does not update cron.
+8. Verify the persistent cost ledger against Anthropic usage after the small
+   calibration task. Confirm automatic scheduled dispatch remains disabled.
+   Inspect existing jobs without running them.
 
 Push alerts remain a separate, undeployed design in [WEBHOOKS.md](WEBHOOKS.md).
 Retain independent provider alerts: an agent outage must not silence incident

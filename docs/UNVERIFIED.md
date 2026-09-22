@@ -1,19 +1,21 @@
 # Unverified
 
+> **Cost incident — 2026-09-22:** Eng is stopped and its key revoked.
+> Agent startup now defaults off. Read [cost controls](COST-CONTROLS.md) before
+> any activation. Automatic cron dispatch and background reviews are disabled;
+> older scheduling instructions below do not enable them.
+
+
 Things I could not confirm in the docs, the repo, or `--help`. Each has the
 safe default I used. None is a silent guess.
 
-1. **Claude 5 model ids inside Hermes.** Hermes docs only show `claude-sonnet-4-6`
-   for native Anthropic and list no Claude 5 or Haiku id in the model catalog.
-   Default: `claude-opus-5` / `claude-sonnet-5` / `claude-haiku-4-5`, the exact
-   Anthropic API ids. **Half-closed 2026-08-29:** the ids are confirmed correct
-   on the Anthropic side - `claude-opus-5` ($5/$25 per MTok), `claude-sonnet-5`
-   ($2/$10), `claude-haiku-4-5` ($1/$5), no date suffixes. What remains open is
-   only whether Hermes passes them through or validates against its own catalog.
-   Check on first boot: `railway ssh --service eng -- hermes model`.
-   If Hermes validates against a catalog and rejects them, the fallback is
-   `model.provider: openrouter` with `anthropic/claude-opus-5`, which needs an
-   OpenRouter key.
+1. **Paid calibration after cost controls.** The real Hermes config loader,
+   automatic-review/scheduler hooks, and native Anthropic SDK (streaming and
+   non-streaming) have passed offline checks against fake provider responses.
+   The proxy permits only `claude-sonnet-5` and `claude-haiku-4-5`. No provider
+   spending limit has been verified and no paid calibration task has been run.
+   Reconcile the first bounded Slack task against actual provider accounting
+   before unattended use. Alternate-provider fallbacks are deliberately blocked.
 
 2. **Root gateway.** The official Hermes Docker page says the gateway refuses to
    run as root unless `HERMES_ALLOW_ROOT_GATEWAY=1`. The template image runs as

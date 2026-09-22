@@ -3,6 +3,9 @@
 import os
 import subprocess
 import tempfile
+import sys
+
+import yaml
 from pathlib import Path
 
 
@@ -19,12 +22,22 @@ class EntrypointDriver:
         self.bin.mkdir()
         stub = self.bin / "hermes"
         stub.write_text(
-            '#!/bin/sh\n[ "$1" = gateway ] || exit 91\n'
-            'env | cut -d= -f1 > "$HERMES_HOME/launched-env-names"\n'
+            'import os\nfrom pathlib import Path\n'
+            'Path(os.environ["HERMES_HOME"], "launched-env-names").write_text("\\n".join(os.environ))\n'
         )
         stub.chmod(0o755)
+        for package, module, code in (
+            ("cron", "scheduler_provider", "class InProcessCronScheduler:\n    def start(self, *a, **k): pass\n"),
+            ("agent", "background_review", "def load_background_review_settings(): return True, {}\n"),
+        ):
+            target = self.root / package
+            target.mkdir()
+            (target / "__init__.py").write_text("")
+            (target / (module + ".py")).write_text(code)
         self.env = {
-            "PATH": str(self.bin) + ":" + os.defpath,
+            "PATH": str(self.bin) + ":" + str(Path(sys.executable).parent) + ":" + os.defpath,
+            "PYTHONPATH": str(self.root),
+            "TAIKAN_AGENT_ENABLED": "true",
             "ANTHROPIC_API_KEY": "fake-provider",
             "BOT": "eng",
             "BOT_ASSETS_DIR": str(ROOT),
@@ -69,3 +82,12 @@ class EntrypointDriver:
 
     def source_asset(self, relative):
         return (ROOT / relative).read_text()
+
+    def config_matches_asset(self):
+        actual = yaml.safe_load(self.read_state("config.yaml"))
+        expected = yaml.safe_load(self.source_asset("config/eng.yaml"))
+        actual["model"].pop("base_url")
+        for task in actual["auxiliary"].values():
+            if isinstance(task, dict):
+                task.pop("base_url", None)
+        return actual == expected

@@ -1,5 +1,11 @@
 # HANDOFF - taikan-agents
 
+> **Cost incident — 2026-09-22:** Eng is stopped and its key revoked.
+> Agent startup now defaults off. Read [cost controls](COST-CONTROLS.md) before
+> any activation. Automatic cron dispatch and background reviews are disabled;
+> older scheduling instructions below do not enable them.
+
+
 Current direction: every agent communicates with Saar through Slack. Start
 with [ENG.md](ENG.md), [PRODUCT.md](PRODUCT.md), [RUNBOOK.md](RUNBOOK.md), and
 [UNVERIFIED.md](UNVERIFIED.md).
@@ -22,7 +28,7 @@ their alternative platform examples are not fleet setup instructions.
   before production actions.
 - Never log tokens. Never run `hermes update` on Railway. Runtime upgrades
   change the pinned `HERMES_GIT_REF` through an approved deployment.
-- Only `eng` has deployment approval recorded in the original handoff. Other
+- The earlier `eng` deployment approval is superseded by the cost-incident stop. Other
   agents remain undeployed until Saar authorizes them. Do not create paid
   services or mutate production as part of soul authoring.
 
@@ -55,14 +61,12 @@ local validation step or a prerequisite for GitHub deployments.
 
 ## Activation sequence
 
-1. Follow ENG's Slack activation steps using the existing bot token and a
-   Socket Mode app token. Complete each integration's authentication.
-2. At the approved deployment, verify the boot logs and a fresh owner Slack
-   conversation. Test the owner allowlist and actual tool access.
-3. Inspect persisted cron jobs. Change existing destinations to Slack; do not
-   register a duplicate morning digest. The runbook gives a create command
-   only for a missing job.
-4. Verify the 07:30 Asia/Jerusalem digest and volume persistence. Report any
-   coverage gap before calling eng ready for on-call use.
-5. Push triggers in [WEBHOOKS.md](WEBHOOKS.md) remain a separate, undeployed
-   phase. Retain independent provider alerts while they are unconfigured.
+Prior deployment approval does not authorize restarting after the cost
+incident. Follow [COST-CONTROLS.md](COST-CONTROLS.md#verification-before-reactivation)
+first: reviewed code, offline tests, independent provider spending limit,
+new dedicated key, then Saar's explicit enable/deploy instruction.
+
+Use one new Slack thread and one bounded read-only task to calibrate usage.
+Inspect account/project access and owner allowlisting. Automatic cron dispatch
+stays off; stored jobs remain on the volume for inspection. Push monitoring
+in WEBHOOKS.md is still a separate design. Retain independent provider alerts.
