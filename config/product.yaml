@@ -1,9 +1,5 @@
-# analyst - product analytics / instrumentation quality. Model: Claude Sonnet 5.
-# Only tool: the official PostHog remote MCP. No Sentry. No database.
-# Shared base: keys verified against the Hermes docs (see docs/RESEARCH.md).
-# Secrets are never here. They come from Railway Variables via ${HERMES_HOME}/.env
-# and the process environment. ${VAR} in mcp_servers.*.headers resolves from both.
-
+# product - CPO across all of Taikan. See souls/product.md and docs/PRODUCT.md.
+# Live access and document coverage require activation; these are declarations.
 timezone: "Asia/Jerusalem"
 
 terminal:
@@ -33,9 +29,25 @@ model:
   max_tokens: 4096
   default: claude-sonnet-5
 
+# Slack is configured with this agent's own bot/app tokens and owner allowlist.
+# Built-in web search/extract must pass a public-source check before research.
+# FIRECRAWL_API_KEY can be supplied for the existing Hermes web tools.
 mcp_servers:
+  github:
+    url: "https://api.githubcopilot.com/mcp/"
+    headers:
+      Authorization: "Bearer ${GITHUB_TOKEN}"
+      X-MCP-Readonly: "true"
+    enabled: true
+    timeout: 120
+  linear:
+    url: "https://mcp.linear.app/mcp"
+    headers:
+      Authorization: "Bearer ${LINEAR_API_KEY}"
+    enabled: true
+    timeout: 120
   posthog:
-    url: "https://mcp.posthog.com/mcp"
+    url: "https://mcp.posthog.com/mcp?readonly=true"
     headers:
       Authorization: "Bearer ${POSTHOG_API_KEY}"
     enabled: true

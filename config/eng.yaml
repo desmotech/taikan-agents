@@ -12,9 +12,14 @@ terminal:
 
 compression:
   enabled: true
-  threshold: 0.85
+  threshold: 0.60
+  threshold_tokens: 24000
+  target_ratio: 0.20
+  protect_last_n: 4
+  max_attempts: 1
 
 memory:
+  nudge_interval: 0
   memory_enabled: true
   user_profile_enabled: true
 
@@ -23,17 +28,18 @@ cron:
 
 model:
   provider: anthropic
+  context_length: 40000
+  max_tokens: 4096
   default: claude-opus-5
 
 # Slack uses SLACK_BOT_TOKEN + SLACK_APP_TOKEN from the environment, with
 # SLACK_ALLOWED_USERS and SLACK_HOME_CHANNEL. See docs/ENG.md for activation.
 # MCP configuration is not proof of a live connection. Test each integration.
-# Railway OAuth credentials persist on the volume; no Railway CLI is required.
+# Sentry and Railway OAuth credentials persist on the volume.
 mcp_servers:
   sentry:
     url: "https://mcp.sentry.dev/mcp"
-    headers:
-      Authorization: "Bearer ${SENTRY_AUTH_TOKEN}"
+    auth: oauth
     enabled: true
     timeout: 120
   linear:
@@ -59,3 +65,42 @@ mcp_servers:
     auth: oauth
     enabled: true
     timeout: 120
+
+# Enforced fleet cost policy; see docs/COST-CONTROLS.md.
+agent:
+  max_turns: 12
+  run_budget_seconds: 180
+  reasoning_effort: low
+  disabled_toolsets: [delegation, cronjob]
+
+auxiliary:
+  background_review:
+    enabled: false
+  compression:
+    provider: anthropic
+    model: claude-haiku-4-5
+  session_search:
+    provider: anthropic
+    model: claude-haiku-4-5
+
+curator:
+  enabled: false
+
+mcp:
+  auto_reload_on_config_change: false
+
+file_read_max_chars: 12000
+tool_output:
+  max_bytes: 12000
+  max_lines: 200
+  max_line_length: 1000
+
+tool_loop_guardrails:
+  hard_stop_enabled: true
+  hard_stop_after:
+    exact_failure: 2
+    same_tool_failure: 3
+    idempotent_no_progress: 2
+  loop_caps:
+    max_web_searches: 4
+    max_subagents: 1

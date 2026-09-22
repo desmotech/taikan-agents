@@ -1,19 +1,21 @@
 # Unverified
 
+> **Cost incident — 2026-09-22:** Eng is stopped and its key revoked.
+> Agent startup now defaults off. Read [cost controls](COST-CONTROLS.md) before
+> any activation. Automatic cron dispatch and background reviews are disabled;
+> older scheduling instructions below do not enable them.
+
+
 Things I could not confirm in the docs, the repo, or `--help`. Each has the
 safe default I used. None is a silent guess.
 
-1. **Claude 5 model ids inside Hermes.** Hermes docs only show `claude-sonnet-4-6`
-   for native Anthropic and list no Claude 5 or Haiku id in the model catalog.
-   Default: `claude-opus-5` / `claude-sonnet-5` / `claude-haiku-4-5`, the exact
-   Anthropic API ids. **Half-closed 2026-08-29:** the ids are confirmed correct
-   on the Anthropic side - `claude-opus-5` ($5/$25 per MTok), `claude-sonnet-5`
-   ($2/$10), `claude-haiku-4-5` ($1/$5), no date suffixes. What remains open is
-   only whether Hermes passes them through or validates against its own catalog.
-   Check on first boot: `railway ssh --service eng -- hermes model`.
-   If Hermes validates against a catalog and rejects them, the fallback is
-   `model.provider: openrouter` with `anthropic/claude-opus-5`, which needs an
-   OpenRouter key.
+1. **Paid calibration after cost controls.** The real Hermes config loader,
+   automatic-review/scheduler hooks, and native Anthropic SDK (streaming and
+   non-streaming) have passed offline checks against fake provider responses.
+   The proxy permits only `claude-sonnet-5` and `claude-haiku-4-5`. No provider
+   spending limit has been verified and no paid calibration task has been run.
+   Reconcile the first bounded Slack task against actual provider accounting
+   before unattended use. Alternate-provider fallbacks are deliberately blocked.
 
 2. **Root gateway.** The official Hermes Docker page says the gateway refuses to
    run as root unless `HERMES_ALLOW_ROOT_GATEWAY=1`. The template image runs as
@@ -24,11 +26,12 @@ safe default I used. None is a silent guess.
 
 3. **Live authentication on the remote MCP servers.** Linear and PostHog now
    document API-key bearer authentication (sources in [ENG.md](ENG.md)); the
-   actual credentials and scopes still need live verification. Sentry bearer
-   compatibility remains unverified, as does the configured GitHub connection.
-   Current default: bearer header for these four. If one rejects it,
-   change that entry to `auth: oauth` and run `hermes mcp login <name>` over
-   Railway SSH; the OAuth flow on a headless box needs the paste-back of the
+   actual credentials and scopes still need live verification. The configured
+   GitHub connection also needs verification. **Updated 2026-09-22:** Sentry's
+   hosted server documents OAuth-only access; eng now uses `auth: oauth`.
+   Complete `hermes mcp login sentry` in an interactive Railway SSH shell;
+   attach `/data` first so credentials survive deployment. On a headless box,
+   complete the OAuth flow by pasting back the
    redirect URL (documented in Hermes' mcp guide). `eng` also has the `gh` CLI
    and `GITHUB_TOKEN` in the image, providing an alternative to test if that MCP
    fails; credentials and scopes still need verification.
@@ -86,3 +89,11 @@ safe default I used. None is a silent guess.
     not claim read-only log/metric coverage until a direct read path is verified.
     The soul requires approval before delegating to that tool. No Railway CLI
     or runtime upgrade is included in this change.
+
+13. **product activation and judgment.** The CPO soul/config declares GitHub,
+    Linear, PostHog, and public research workflows; product is not deployed.
+    Dedicated read-scoped credentials, actual web search/extraction in the
+    pinned image, the document inventory/reading pass, and notebook persistence
+    need verification. No external customer-feedback repository is connected.
+    Run [PRODUCT-EVALS.md](PRODUCT-EVALS.md) after activation; static validation
+    is not proof of product judgment, source coverage, or live tool access.

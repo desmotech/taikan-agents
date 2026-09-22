@@ -1,5 +1,11 @@
 # eng: engineering wingman
 
+> **Cost incident — 2026-09-22:** Eng is stopped and its key revoked.
+> Agent startup now defaults off. Read [cost controls](COST-CONTROLS.md) before
+> any activation. Automatic cron dispatch and background reviews are disabled;
+> older scheduling instructions below do not enable them.
+
+
 `eng` is Saar's lead architect and software engineer for system stability,
 on-call response, and performance. [The soul](../souls/eng.md) is its operating
 contract; [the config](../config/eng.yaml) declares its integrations.
@@ -11,7 +17,7 @@ contract; [the config](../config/eng.yaml) declares its integrations.
 - Sentry, Linear, and GitHub MCP entries retained; PostHog and Railway added.
 - Slack credential prompts for every agent. The entrypoint requires Slack
   tokens and an explicit owner allowlist, and strips legacy platform variables.
-- A Slack destination for the documented morning digest.
+- Opus 5 for requested engineering work; no automatic digest or monitoring.
 - CI validation and image build checks before Railway GitHub autodeploys.
   Follow [the first-deployment setup](RUNBOOK.md#github-ci-and-railway-deployment).
 
@@ -23,8 +29,11 @@ retained only as history.
 
 ## Authority
 
-`eng` independently reads available telemetry and code, prepares local fixes
-and tests, and creates or adds factual updates to deduplicated `FIT` issues.
+`eng` acts only on Saar's direct requests. Within the assigned scope it reads
+available telemetry and code and prepares requested local fixes and tests.
+It proposes next steps and waits for Saar to choose; Linear writes need an
+explicit request. Advice does not authorize implementation. It must not start
+monitoring, preliminary audits, skill creation, or work after task completion.
 It can explain architecture and recommend operational actions from a phone
 conversation. It continues safe work while an action is awaiting approval.
 
@@ -68,31 +77,39 @@ Never paste tokens into Slack, Linear, this repository, or an agent prompt.
 The entrypoint removes legacy platform variables from the gateway process and
 regenerates its `.env` with Slack settings only. It does not delete Railway
 variables or migrate persisted cron jobs. At the approved deployment, supply
-Slack credentials first, remove obsolete variables in Railway, and change any
-existing jobs to Slack delivery. Inspect the cron list before creating jobs
-to avoid duplicate digests. There is no fallback to another chat platform.
+Slack credentials first, remove obsolete variables in Railway, and leave all
+existing jobs disabled. Do not create monitoring jobs or digests. There is
+no fallback to another chat platform.
 
 ## Integrations
 
 | Integration | Authentication and verification |
 | --- | --- |
-| Sentry | Existing `SENTRY_AUTH_TOKEN` bearer configuration. Verify a real issue read. Token compatibility is still unverified; if rejected, use the documented MCP OAuth flow rather than exposing the token. |
+| Sentry | Hosted MCP requires OAuth. Run `hermes mcp login sentry` in the deployed profile, then verify a real issue read. `SENTRY_AUTH_TOKEN` is for the REST API and is not used by this MCP configuration. |
 | Linear | `LINEAR_API_KEY`, scoped to the `FIT` team and needed issue operations. Verify search/read without creating a test ticket. |
 | PostHog | `POSTHOG_API_KEY` must be a personal key with access restricted to Taikan, not the ingestion/project key. The endpoint uses `readonly=true`. Verify project identity and a bounded aggregate query. |
 | Railway | Remote MCP at `https://mcp.railway.com` with OAuth. Authorize only the intended Taikan projects. Project API tokens are not accepted by this endpoint. |
 | GitHub | Existing `GITHUB_TOKEN`, read-only repository content and Actions access. Verify the target repo and one CI run. |
 
 Railway does not need a CLI installed in the agent image with this transport.
-In the running service's Hermes profile, complete the documented OAuth login:
+Attach a persistent volume at `/data` before signing in. In the running
+service's Hermes profile, complete both OAuth logins:
 
 ```sh
-railway ssh --service eng -- hermes mcp login railway
+railway ssh --service eng
+# Run inside the interactive remote shell:
+hermes mcp login railway
+hermes mcp login sentry
 ```
 
-The owner completes the browser authorization; credentials remain in Hermes's
-token store on the volume. Headless login and token refresh on the pinned
-Hermes version still require live verification. This document is not approval
-to deploy, restart, or change production credentials.
+The owner opens each authorization URL in a local browser. The pinned Hermes
+version supports pasting the final redirect URL back into its terminal prompt;
+a localhost connection error in the browser is expected when using this method.
+Paste it only into the login prompt, never into Slack or a shared log.
+Credentials remain in `HERMES_HOME/mcp-tokens/` on the volume. The gateway
+rechecks parked servers periodically; verify discovery and a real read after
+login. Live login and refresh still require verification. This document is not
+approval to deploy, restart, or change production credentials.
 
 Inspect the actual discovered tools. The hosted Railway server exposes a
 general-purpose `railway-agent` tool; it is capable of taking actions, so a
@@ -108,6 +125,9 @@ Sources: [Railway MCP](https://docs.railway.com/ai/mcp-server),
 [Hermes MCP config](https://hermes-agent.nousresearch.com/docs/reference/mcp-config-reference/).
 
 ## Activation checks
+
+First complete [cost reactivation prerequisites](COST-CONTROLS.md#verification-before-reactivation).
+Run these as separate bounded tasks; no exhaustive single-turn audit.
 
 1. Start a fresh Slack conversation after the approved deployment. Confirm
    eng identifies its expanded role and replies in the correct conversation.
@@ -126,9 +146,9 @@ Sources: [Railway MCP](https://docs.railway.com/ai/mcp-server),
    validation plan, not just error triage.
 7. Instruct it to prepare a small local fix. Confirm checkout isolation,
    target-repo instructions, test evidence, and no unauthorized commit/push.
-8. Inspect the persisted digest job and delivery target using the installed
-   CLI's help. After approved registration/cutover, verify one Slack delivery
-   and the 07:30 Asia/Jerusalem schedule. A soul change does not update cron.
+8. Verify the persistent cost ledger against Anthropic usage after the small
+   calibration task. Confirm automatic scheduled dispatch remains disabled.
+   Inspect existing jobs without running them.
 
 Push alerts remain a separate, undeployed design in [WEBHOOKS.md](WEBHOOKS.md).
 Retain independent provider alerts: an agent outage must not silence incident

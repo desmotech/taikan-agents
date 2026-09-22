@@ -102,9 +102,13 @@ set_secret SLACK_APP_TOKEN "SLACK_APP_TOKEN (same app, Socket Mode, connections:
 set_plain SLACK_ALLOWED_USERS "SLACK_ALLOWED_USERS (your Slack member id)"
 set_plain SLACK_HOME_CHANNEL "SLACK_HOME_CHANNEL (your DM or private channel id)"
 case "$BOT" in
-  eng)     set_secret SENTRY_AUTH_TOKEN "SENTRY_AUTH_TOKEN"; set_secret LINEAR_API_KEY "LINEAR_API_KEY"; set_secret GITHUB_TOKEN "GITHUB_TOKEN (read-only PAT)"
+  eng)     set_secret LINEAR_API_KEY "LINEAR_API_KEY"; set_secret GITHUB_TOKEN "GITHUB_TOKEN (read-only PAT)"
            set_secret POSTHOG_API_KEY "POSTHOG_API_KEY (personal API key restricted to Taikan, read scopes)"
-           manual "After eng boots, complete Railway MCP OAuth in its Hermes profile; see docs/ENG.md.";;
+           manual "After eng boots, complete Sentry and Railway MCP OAuth in its Hermes profile; see docs/ENG.md.";;
+  product) set_secret GITHUB_TOKEN "GITHUB_TOKEN (read-only Taikan docs/code access)"
+           set_secret LINEAR_API_KEY "LINEAR_API_KEY (product-only key, Read permission)"
+           set_secret POSTHOG_API_KEY "POSTHOG_API_KEY (personal key restricted to Taikan, read scopes)"
+           manual "Verify public web search/extract before competitor research; optional FIRECRAWL_API_KEY. See docs/PRODUCT.md.";;
   ops)     set_secret GITHUB_TOKEN "GITHUB_TOKEN"; set_secret SENTRY_AUTH_TOKEN "SENTRY_AUTH_TOKEN"; set_secret RAILWAY_API_TOKEN "RAILWAY_API_TOKEN"
            set_secret R2_ACCESS_KEY_ID "R2_ACCESS_KEY_ID"; set_secret R2_SECRET_ACCESS_KEY "R2_SECRET_ACCESS_KEY"
            set_plain R2_ENDPOINT "R2_ENDPOINT"; set_plain R2_BACKUP_BUCKET "R2_BACKUP_BUCKET";;
@@ -130,3 +134,5 @@ manual "Service $BOT -> Settings -> Deploy -> Restart policy: On failure (railwa
 
 log "Done. Watch the first deploy:"
 echo "   scripts/logs.sh $BOT"
+
+printf "\nCost guard: new agents remain disabled. Read docs/COST-CONTROLS.md before explicitly setting TAIKAN_AGENT_ENABLED=true.\n"

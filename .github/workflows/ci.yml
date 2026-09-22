@@ -68,3 +68,9 @@ jobs:
             test -s /app/config/eng.yaml
             python -c "import anthropic, mcp, slack_bolt, slack_sdk"
           '
+
+      - name: Verify spending gate against real Hermes without network
+        run: |
+          docker run --rm --network none \
+            -v "$PWD:/checks:ro" --entrypoint python taikan-agents:ci \
+            /checks/scripts/verify_runtime.py

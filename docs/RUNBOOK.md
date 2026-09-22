@@ -1,5 +1,11 @@
 # Runbook
 
+> **Cost incident — 2026-09-22:** Eng is stopped and its key revoked.
+> Agent startup now defaults off. Read [cost controls](COST-CONTROLS.md) before
+> any activation. Automatic cron dispatch and background reviews are disabled;
+> older scheduling instructions below do not enable them.
+
+
 For the founder. Every command was checked against `railway --help` (5.45.7)
 or the Hermes docs; see `RESEARCH.md` for sources.
 
@@ -13,7 +19,9 @@ The entrypoint requires both tokens and a nonempty owner allowlist.
 
 See [ENG.md](ENG.md#slack-activation) for app setup. The same Slack steps apply
 to all agents; use separate app/bot tokens per agent. `eng` additionally uses
-Sentry, PostHog, Railway, Linear, and GitHub. Live activation is separate from
+Sentry, PostHog, Railway, Linear, and GitHub. `product` uses GitHub docs/code,
+Linear, PostHog aggregates, and public web research; its first-run knowledge
+workflow is in [PRODUCT.md](PRODUCT.md). Live activation is separate from
 editing souls or config.
 
 ## Add a new agent in four steps
@@ -23,10 +31,13 @@ editing souls or config.
 2. `config/<bot>.yaml`: copy the closest existing one, set `model.default`,
    add `mcp_servers` if it needs tools. Secrets go in as `${ENV_VAR}`.
 3. `scripts/bootstrap.sh`: if the bot needs extra secrets, add a `case` line.
-   Commit and push (the service builds from GitHub, so the files must be there).
-4. `scripts/bootstrap.sh <bot>`, type the secrets at the prompts, then
-   `scripts/logs.sh <bot>` and wait for `[bootstrap] Starting Hermes gateway...`.
-   Send the bot a message on its configured platform. If it needs cron, see below.
+   Validate locally, then commit/push when authorized. The service builds from
+   GitHub, so publishing to an existing service's branch can trigger deployment.
+4. When deployment is authorized, add a service in the existing agent project
+   using the GitHub setup below, with `BOT=<bot>` and its own Slack credentials
+   and `/data` volume. `scripts/bootstrap.sh <bot>` is an alternative that also
+   creates live resources. Confirm actual Slack delivery and integration reads.
+   If it needs cron, see below.
 
 ## GitHub CI and Railway deployment
 
@@ -40,7 +51,9 @@ For the first deployment:
 
 1. Create the separate `taikan-agents` Railway project. Add one service from
    `desmotech/taikan-agents`, named `eng`, connected to `main` at the repo root.
-2. Mount a persistent volume at `/data` and keep one replica.
+2. Mount a persistent volume at `/data` and keep one replica. The entrypoint
+   checks Railway's `RAILWAY_VOLUME_MOUNT_PATH` and refuses an absent or wrong
+   mount. Do not manually set this Railway-provided variable.
 3. Set `BOT=eng`, `TZ=Asia/Jerusalem`, `GATEWAY_ALLOW_ALL_USERS=false`, and
    `SLACK_ALLOW_ALL_USERS=false`. Add `ANTHROPIC_API_KEY` and the Slack values
    from [ENG.md](ENG.md). Add the integration credentials there as available.
@@ -52,7 +65,7 @@ For the first deployment:
    [the activation checks](ENG.md#activation-checks).
 
 The first source connection can start a build before these settings are ready;
-the gateway refuses to start without Slack tokens and the owner allowlist.
+the gateway refuses to start without its volume, Slack tokens, and owner allowlist.
 Configure the service and deploy the latest passing commit once ready.
 
 No Railway token belongs in GitHub Actions. Railway's repository integration
@@ -143,6 +156,31 @@ Manage: `railway ssh --service <bot> -- hermes cron list|pause <id>|resume <id>|
   `railway variable list` can expose every secret. Inspect pending pairing
   requests with `hermes pairing list`; approve only the verified owner.
 
+### Startup warnings and deployment notifications
+
+- `Early reject of unauthorized user U...`: incoming Slack events work, but
+  that member ID is not allowed. Set `SLACK_ALLOWED_USERS` to the owner's raw
+  member ID (comma-separated IDs for multiple authorized owners), with no
+  quotes, mentions, display names, or channel IDs. Keep allow-all disabled.
+- `Gateway shutting down` can be the old instance's notification during a
+  deployment. Correlate its time with Railway's removed deployment and
+  `Stopping Container` log; inspect the newest deployment before concluding
+  the replacement failed.
+- Railway reports stderr lines as errors even when Hermes labels them WARNING.
+  Read the inner message and deployment status.
+- Sentry and Railway MCP park until their first OAuth login. Follow
+  [ENG.md](ENG.md#integrations) after attaching `/data`; a REST API token is
+  not a substitute for Sentry MCP OAuth.
+- SQLite's WAL-reset warning means Hermes selected `journal_mode=DELETE` to
+  avoid the affected WAL path. It is not a startup failure. Fix the linked
+  SQLite runtime in a tested image rebuild (3.51.3+ or a documented fixed
+  backport); do not force WAL or run `hermes update` inside this pinned image.
+  See [SQLite's advisory](https://sqlite.org/wal.html#walresetbug).
+- Slack's missing `mpim:history` / `message.mpim` warning affects group DMs.
+  One-to-one DMs and channels do not require group-DM access. If group DMs are
+  needed, add `mpim:history` and `mpim:read`, subscribe to `message.mpim`, and
+  reinstall the app. The `client` / `token` Bolt warning is nonfatal.
+
 ## Inspect the volume
 
 ```
@@ -164,7 +202,9 @@ is thrown away on the next deploy and is not what Git says you run. Instead:
 
 1. Pick a tag from https://github.com/NousResearch/hermes-agent/releases.
 2. Update the Dockerfile's `HERMES_GIT_REF` default, `scripts/bootstrap.sh`, and
-   `.env.example` together. Commit and push after approval; CI builds the new
+   `.env.example` together. Update the verified commit assertion in Dockerfile
+   and scripts/validate.py, then pass scripts/verify_runtime.py in the image.
+   Commit and push after approval; CI builds the new
    runtime before Railway deploys it. Remove any old Railway ref override so
    the service uses the tested Dockerfile default.
 3. After it boots: `railway ssh --service eng -- hermes config check`, and if it
@@ -177,17 +217,17 @@ service: `railway ssh --service <bot> -- hermes <cmd>`.
 
 ## Cost per service, and stopping one
 
-Railway meters RAM at ~$10/GB-month and CPU at ~$20/vCPU-month by the minute,
-volume at $0.15/GB-month. A Hermes gateway idles at a few hundred MB and near
-zero CPU, so expect roughly **$3-8/month per service** in compute, plus the
-volume (under $1), plus the Hobby plan's $5 base which covers the first $5.
-Model spend is separate and dominates: Opus 5 is $5/$25 per million input/output
-tokens, Sonnet 5 $2/$10, Haiku 4.5 $1/$5. A daily cron on Opus that reads a lot
-of Sentry can cost more than the service hosting it. Watch it:
-`railway usage --json` and the Anthropic console. Set a hard cap once:
-`railway usage limit set --target workspace --soft 20 --hard 40`.
+Model accounting is bounded by the local $2/day and $10 total gate described
+in [COST-CONTROLS.md](COST-CONTROLS.md). These are conservative accounting
+limits; verify an independent provider workspace spending limit before
+reactivation. Railway compute/storage and other paid services are separate.
 
-Stop paying for one service, keep its memory: `railway scale --service scout eu-west=0`
-(use the region shown in the dashboard). The volume still bills.
-Remove it entirely: `railway service delete --service scout --environment production --yes`,
-then `railway volume list` and `railway volume delete --volume <id> --yes`.
+To stop eng in Railway: **taikan-agents → eng → Deployments → active
+ deployment → ⋮ → Remove**. Wait for Removed. Keep the service and its volume.
+Disconnect the GitHub source if future pushes must not trigger a deployment.
+Revoke the agent's dedicated provider key if spend is still at risk. The new
+entrypoint also defaults off unless `TAIKAN_AGENT_ENABLED=true`.
+
+Volume storage continues to bill while the process is stopped. Do not delete
+it: it holds evidence, memory, OAuth state and the persistent spending ledger.
+See [Railway deployment actions](https://docs.railway.com/deployments/deployment-actions).
