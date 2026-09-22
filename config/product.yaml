@@ -1,0 +1,47 @@
+# product - CPO across all of Taikan. See souls/product.md and docs/PRODUCT.md.
+# Live access and document coverage require activation; these are declarations.
+timezone: "Asia/Jerusalem"
+
+terminal:
+  backend: local
+  cwd: /data/workspace
+  timeout: 180
+
+compression:
+  enabled: true
+  threshold: 0.85
+
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+
+cron:
+  wrap_response: false
+
+model:
+  provider: anthropic
+  default: claude-opus-5
+
+# Slack is configured with this agent's own bot/app tokens and owner allowlist.
+# Built-in web search/extract must pass a public-source check before research.
+# FIRECRAWL_API_KEY can be supplied for the existing Hermes web tools.
+mcp_servers:
+  github:
+    url: "https://api.githubcopilot.com/mcp/"
+    headers:
+      Authorization: "Bearer ${GITHUB_TOKEN}"
+      X-MCP-Readonly: "true"
+    enabled: true
+    timeout: 120
+  linear:
+    url: "https://mcp.linear.app/mcp"
+    headers:
+      Authorization: "Bearer ${LINEAR_API_KEY}"
+    enabled: true
+    timeout: 120
+  posthog:
+    url: "https://mcp.posthog.com/mcp?readonly=true"
+    headers:
+      Authorization: "Bearer ${POSTHOG_API_KEY}"
+    enabled: true
+    timeout: 120

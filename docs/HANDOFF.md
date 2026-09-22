@@ -1,7 +1,8 @@
 # HANDOFF - taikan-agents
 
 Current direction: every agent communicates with Saar through Slack. Start
-with [ENG.md](ENG.md), [RUNBOOK.md](RUNBOOK.md), and [UNVERIFIED.md](UNVERIFIED.md).
+with [ENG.md](ENG.md), [PRODUCT.md](PRODUCT.md), [RUNBOOK.md](RUNBOOK.md), and
+[UNVERIFIED.md](UNVERIFIED.md).
 `RESEARCH.md` and `UPSTREAM-README.md` preserve the original upstream research;
 their alternative platform examples are not fleet setup instructions.
 
@@ -33,12 +34,24 @@ Railway. Slack bootstrap applies to every agent; the gateway refuses to start
 without both Slack tokens and an owner allowlist. Legacy platform environment
 variables are removed before launching Hermes.
 
-Saar confirmed the agent project does not yet exist. First deployment uses a
-separate `taikan-agents` project linked to this repo, with Railway waiting for
-GitHub CI. Follow [the deployment setup](RUNBOOK.md#github-ci-and-railway-deployment).
-Live credentials, integration access, Slack delivery, and deployed behavior
-remain unverified. `scripts/bootstrap.sh` is an alternative owner-run deployment
-command, not a local validation step or a prerequisite for GitHub deployments.
+On 2026-09-22 the separate `taikan-agents` project and `eng` service were
+observed running on Railway with a `/data` volume. Saar reported successful
+Sentry and Railway OAuth setup. End-to-end Slack access and actual reads from
+all integrations still need verification. Wait for CI was disabled at the last
+inspection. The Sentry OAuth config correction and volume startup guard are
+prepared locally; live manual MCP config edits are overwritten at boot until
+the corresponding Git correction is published through an approved deployment.
+
+Saar chose `product` next, covering all of Taikan as CPO. Its soul/config,
+read-oriented GitHub/Linear/PostHog setup, knowledge workflow, and behavioral
+acceptance scenarios are drafted. The first-run document inventory and product
+brief have not been executed by a deployed agent. Customer research sources
+and all product-service credentials remain to be connected. No product service,
+cron job, agent-to-agent transport, or paid resource was created.
+
+Follow [the deployment setup](RUNBOOK.md#github-ci-and-railway-deployment).
+`scripts/bootstrap.sh` is an alternative owner-run deployment command, not a
+local validation step or a prerequisite for GitHub deployments.
 
 ## Activation sequence
 

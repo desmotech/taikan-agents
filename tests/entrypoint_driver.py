@@ -61,6 +61,9 @@ class EntrypointDriver:
     def environment_names(self):
         return self.read_state("launched-env-names").splitlines()
 
+    def state_exists(self, relative):
+        return (self.state / relative).exists()
+
     def read_state(self, relative):
         return (self.state / relative).read_text()
 

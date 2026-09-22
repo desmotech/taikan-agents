@@ -24,11 +24,12 @@ safe default I used. None is a silent guess.
 
 3. **Live authentication on the remote MCP servers.** Linear and PostHog now
    document API-key bearer authentication (sources in [ENG.md](ENG.md)); the
-   actual credentials and scopes still need live verification. Sentry bearer
-   compatibility remains unverified, as does the configured GitHub connection.
-   Current default: bearer header for these four. If one rejects it,
-   change that entry to `auth: oauth` and run `hermes mcp login <name>` over
-   Railway SSH; the OAuth flow on a headless box needs the paste-back of the
+   actual credentials and scopes still need live verification. The configured
+   GitHub connection also needs verification. **Updated 2026-09-22:** Sentry's
+   hosted server documents OAuth-only access; eng now uses `auth: oauth`.
+   Complete `hermes mcp login sentry` in an interactive Railway SSH shell;
+   attach `/data` first so credentials survive deployment. On a headless box,
+   complete the OAuth flow by pasting back the
    redirect URL (documented in Hermes' mcp guide). `eng` also has the `gh` CLI
    and `GITHUB_TOKEN` in the image, providing an alternative to test if that MCP
    fails; credentials and scopes still need verification.
@@ -86,3 +87,11 @@ safe default I used. None is a silent guess.
     not claim read-only log/metric coverage until a direct read path is verified.
     The soul requires approval before delegating to that tool. No Railway CLI
     or runtime upgrade is included in this change.
+
+13. **product activation and judgment.** The CPO soul/config declares GitHub,
+    Linear, PostHog, and public research workflows; product is not deployed.
+    Dedicated read-scoped credentials, actual web search/extraction in the
+    pinned image, the document inventory/reading pass, and notebook persistence
+    need verification. No external customer-feedback repository is connected.
+    Run [PRODUCT-EVALS.md](PRODUCT-EVALS.md) after activation; static validation
+    is not proof of product judgment, source coverage, or live tool access.

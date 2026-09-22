@@ -38,7 +38,8 @@ class EntrypointTests(unittest.TestCase):
             "cron/jobs.json": "existing schedules",
             "state.db": "existing state",
             "auth.json": "existing auth",
-            "mcp-tokens/railway.json": "existing OAuth",
+            "mcp-tokens/railway.json": "existing Railway OAuth",
+            "mcp-tokens/sentry.json": "existing Sentry OAuth",
             ".initialized": "original initialization",
         }
         for path, content in persisted.items():
@@ -50,6 +51,26 @@ class EntrypointTests(unittest.TestCase):
         for path, content in persisted.items():
             self.assertEqual(self.driver.read_state(path), content)
         self.assertEqual(self.driver.read_state("SOUL.md"), self.driver.source_asset("souls/eng.md"))
+
+    def test_railway_without_data_volume_refuses_to_start(self):
+        for mount in (None, "/wrong-path"):
+            with self.subTest(mount=mount):
+                result = self.driver.run(
+                    RAILWAY_ENVIRONMENT_ID="test-environment",
+                    RAILWAY_VOLUME_MOUNT_PATH=mount,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("persistent Railway volume at /data", result.stderr)
+                self.assertFalse(self.driver.launched())
+                self.assertFalse(self.driver.state_exists(".initialized"))
+
+    def test_railway_with_data_volume_starts(self):
+        result = self.driver.run(
+            RAILWAY_ENVIRONMENT_ID="test-environment",
+            RAILWAY_VOLUME_MOUNT_PATH="/data",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(self.driver.launched())
 
     def test_incomplete_slack_setup_is_rejected_without_fallback(self):
         cases = [

@@ -10,6 +10,13 @@ ENV_FILE="${HERMES_HOME}/.env"
 CONFIG_FILE="${HERMES_HOME}/config.yaml"
 DEFAULT_TERMINAL_CWD="${TERMINAL_CWD:-${LEGACY_MESSAGING_CWD}}"
 
+# Railway supplies this variable only when a persistent volume is attached.
+# A directory created in the container is ephemeral even when named /data.
+if [[ -n "${RAILWAY_ENVIRONMENT_ID:-}" && "${RAILWAY_VOLUME_MOUNT_PATH:-}" != /data ]]; then
+  echo "[bootstrap] ERROR: Attach a persistent Railway volume at /data before starting this agent." >&2
+  exit 1
+fi
+
 mkdir -p "${HERMES_HOME}" "${HERMES_HOME}/logs" "${HERMES_HOME}/sessions" "${HERMES_HOME}/cron" "${HERMES_HOME}/pairing" "${DEFAULT_TERMINAL_CWD}"
 
 is_true() {

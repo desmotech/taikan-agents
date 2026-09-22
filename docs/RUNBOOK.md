@@ -13,7 +13,9 @@ The entrypoint requires both tokens and a nonempty owner allowlist.
 
 See [ENG.md](ENG.md#slack-activation) for app setup. The same Slack steps apply
 to all agents; use separate app/bot tokens per agent. `eng` additionally uses
-Sentry, PostHog, Railway, Linear, and GitHub. Live activation is separate from
+Sentry, PostHog, Railway, Linear, and GitHub. `product` uses GitHub docs/code,
+Linear, PostHog aggregates, and public web research; its first-run knowledge
+workflow is in [PRODUCT.md](PRODUCT.md). Live activation is separate from
 editing souls or config.
 
 ## Add a new agent in four steps
@@ -23,10 +25,13 @@ editing souls or config.
 2. `config/<bot>.yaml`: copy the closest existing one, set `model.default`,
    add `mcp_servers` if it needs tools. Secrets go in as `${ENV_VAR}`.
 3. `scripts/bootstrap.sh`: if the bot needs extra secrets, add a `case` line.
-   Commit and push (the service builds from GitHub, so the files must be there).
-4. `scripts/bootstrap.sh <bot>`, type the secrets at the prompts, then
-   `scripts/logs.sh <bot>` and wait for `[bootstrap] Starting Hermes gateway...`.
-   Send the bot a message on its configured platform. If it needs cron, see below.
+   Validate locally, then commit/push when authorized. The service builds from
+   GitHub, so publishing to an existing service's branch can trigger deployment.
+4. When deployment is authorized, add a service in the existing agent project
+   using the GitHub setup below, with `BOT=<bot>` and its own Slack credentials
+   and `/data` volume. `scripts/bootstrap.sh <bot>` is an alternative that also
+   creates live resources. Confirm actual Slack delivery and integration reads.
+   If it needs cron, see below.
 
 ## GitHub CI and Railway deployment
 
@@ -40,7 +45,9 @@ For the first deployment:
 
 1. Create the separate `taikan-agents` Railway project. Add one service from
    `desmotech/taikan-agents`, named `eng`, connected to `main` at the repo root.
-2. Mount a persistent volume at `/data` and keep one replica.
+2. Mount a persistent volume at `/data` and keep one replica. The entrypoint
+   checks Railway's `RAILWAY_VOLUME_MOUNT_PATH` and refuses an absent or wrong
+   mount. Do not manually set this Railway-provided variable.
 3. Set `BOT=eng`, `TZ=Asia/Jerusalem`, `GATEWAY_ALLOW_ALL_USERS=false`, and
    `SLACK_ALLOW_ALL_USERS=false`. Add `ANTHROPIC_API_KEY` and the Slack values
    from [ENG.md](ENG.md). Add the integration credentials there as available.
@@ -52,7 +59,7 @@ For the first deployment:
    [the activation checks](ENG.md#activation-checks).
 
 The first source connection can start a build before these settings are ready;
-the gateway refuses to start without Slack tokens and the owner allowlist.
+the gateway refuses to start without its volume, Slack tokens, and owner allowlist.
 Configure the service and deploy the latest passing commit once ready.
 
 No Railway token belongs in GitHub Actions. Railway's repository integration
@@ -142,6 +149,31 @@ Manage: `railway ssh --service <bot> -- hermes cron list|pause <id>|resume <id>|
   and follow [ENG.md](ENG.md). Inspect only the needed setting in the dashboard;
   `railway variable list` can expose every secret. Inspect pending pairing
   requests with `hermes pairing list`; approve only the verified owner.
+
+### Startup warnings and deployment notifications
+
+- `Early reject of unauthorized user U...`: incoming Slack events work, but
+  that member ID is not allowed. Set `SLACK_ALLOWED_USERS` to the owner's raw
+  member ID (comma-separated IDs for multiple authorized owners), with no
+  quotes, mentions, display names, or channel IDs. Keep allow-all disabled.
+- `Gateway shutting down` can be the old instance's notification during a
+  deployment. Correlate its time with Railway's removed deployment and
+  `Stopping Container` log; inspect the newest deployment before concluding
+  the replacement failed.
+- Railway reports stderr lines as errors even when Hermes labels them WARNING.
+  Read the inner message and deployment status.
+- Sentry and Railway MCP park until their first OAuth login. Follow
+  [ENG.md](ENG.md#integrations) after attaching `/data`; a REST API token is
+  not a substitute for Sentry MCP OAuth.
+- SQLite's WAL-reset warning means Hermes selected `journal_mode=DELETE` to
+  avoid the affected WAL path. It is not a startup failure. Fix the linked
+  SQLite runtime in a tested image rebuild (3.51.3+ or a documented fixed
+  backport); do not force WAL or run `hermes update` inside this pinned image.
+  See [SQLite's advisory](https://sqlite.org/wal.html#walresetbug).
+- Slack's missing `mpim:history` / `message.mpim` warning affects group DMs.
+  One-to-one DMs and channels do not require group-DM access. If group DMs are
+  needed, add `mpim:history` and `mpim:read`, subscribe to `message.mpim`, and
+  reinstall the app. The `client` / `token` Bolt warning is nonfatal.
 
 ## Inspect the volume
 

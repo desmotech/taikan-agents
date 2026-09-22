@@ -17,7 +17,8 @@ is never touched.
 
 | bot | model | job | status |
 |---|---|---|---|
-| `eng` | Claude Opus 5 | Lead architect and engineer; stability, on-call, performance; Slack wingman | ready for first deployment; Slack activation pending |
+| `eng` | Claude Opus 5 | Lead architect and engineer; stability, on-call, performance; Slack wingman | deployed; activation verification in progress |
+| `product` | Claude Opus 5 | CPO across Taikan: vision, priorities, research, risk, specs, and outcomes | soul/config drafted; not deployed |
 | `marketing` | Claude Sonnet 5 | Hebrew launch post drafts, never posts | scaffold |
 | `ops` | Claude Haiku 4.5 | daily quota + backup watchdog, alerts on threshold only | scaffold |
 | `scout` | Claude Sonnet 5 | weekly competitor + industry report | scaffold |
@@ -63,3 +64,7 @@ Start with [docs/RUNBOOK.md](docs/RUNBOOK.md). Open questions are in
 For `eng`'s authority, integrations, and Slack activation, read
 [souls/eng.md](souls/eng.md) and [docs/ENG.md](docs/ENG.md). Configuration in
 this repo does not establish live tool access or install monitoring jobs.
+
+For `product`'s decision process, document knowledge, and first assignment, read
+[souls/product.md](souls/product.md) and [docs/PRODUCT.md](docs/PRODUCT.md).
+[Acceptance scenarios](docs/PRODUCT-EVALS.md) check its judgment after activation.

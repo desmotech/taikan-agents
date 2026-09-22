@@ -28,12 +28,11 @@ model:
 # Slack uses SLACK_BOT_TOKEN + SLACK_APP_TOKEN from the environment, with
 # SLACK_ALLOWED_USERS and SLACK_HOME_CHANNEL. See docs/ENG.md for activation.
 # MCP configuration is not proof of a live connection. Test each integration.
-# Railway OAuth credentials persist on the volume; no Railway CLI is required.
+# Sentry and Railway OAuth credentials persist on the volume.
 mcp_servers:
   sentry:
     url: "https://mcp.sentry.dev/mcp"
-    headers:
-      Authorization: "Bearer ${SENTRY_AUTH_TOKEN}"
+    auth: oauth
     enabled: true
     timeout: 120
   linear:

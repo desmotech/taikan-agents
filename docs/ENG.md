@@ -76,23 +76,31 @@ to avoid duplicate digests. There is no fallback to another chat platform.
 
 | Integration | Authentication and verification |
 | --- | --- |
-| Sentry | Existing `SENTRY_AUTH_TOKEN` bearer configuration. Verify a real issue read. Token compatibility is still unverified; if rejected, use the documented MCP OAuth flow rather than exposing the token. |
+| Sentry | Hosted MCP requires OAuth. Run `hermes mcp login sentry` in the deployed profile, then verify a real issue read. `SENTRY_AUTH_TOKEN` is for the REST API and is not used by this MCP configuration. |
 | Linear | `LINEAR_API_KEY`, scoped to the `FIT` team and needed issue operations. Verify search/read without creating a test ticket. |
 | PostHog | `POSTHOG_API_KEY` must be a personal key with access restricted to Taikan, not the ingestion/project key. The endpoint uses `readonly=true`. Verify project identity and a bounded aggregate query. |
 | Railway | Remote MCP at `https://mcp.railway.com` with OAuth. Authorize only the intended Taikan projects. Project API tokens are not accepted by this endpoint. |
 | GitHub | Existing `GITHUB_TOKEN`, read-only repository content and Actions access. Verify the target repo and one CI run. |
 
 Railway does not need a CLI installed in the agent image with this transport.
-In the running service's Hermes profile, complete the documented OAuth login:
+Attach a persistent volume at `/data` before signing in. In the running
+service's Hermes profile, complete both OAuth logins:
 
 ```sh
-railway ssh --service eng -- hermes mcp login railway
+railway ssh --service eng
+# Run inside the interactive remote shell:
+hermes mcp login railway
+hermes mcp login sentry
 ```
 
-The owner completes the browser authorization; credentials remain in Hermes's
-token store on the volume. Headless login and token refresh on the pinned
-Hermes version still require live verification. This document is not approval
-to deploy, restart, or change production credentials.
+The owner opens each authorization URL in a local browser. The pinned Hermes
+version supports pasting the final redirect URL back into its terminal prompt;
+a localhost connection error in the browser is expected when using this method.
+Paste it only into the login prompt, never into Slack or a shared log.
+Credentials remain in `HERMES_HOME/mcp-tokens/` on the volume. The gateway
+rechecks parked servers periodically; verify discovery and a real read after
+login. Live login and refresh still require verification. This document is not
+approval to deploy, restart, or change production credentials.
 
 Inspect the actual discovered tools. The hosted Railway server exposes a
 general-purpose `railway-agent` tool; it is capable of taking actions, so a
