@@ -23,7 +23,7 @@ is never touched.
 
 | bot | model | job | status |
 |---|---|---|---|
-| `eng` | Claude Sonnet 5 | Lead architect and engineer; stability, on-call, performance; Slack wingman | stopped after cost incident; guarded changes pending |
+| `eng` | Claude Opus 5 | Lead architect and engineer; stability, on-call, performance; Slack wingman | stopped after cost incident; guarded changes pending |
 | `product` | Claude Sonnet 5 | CPO across Taikan: vision, priorities, research, risk, specs, and outcomes | soul/config drafted; not deployed |
 | `marketing` | Claude Sonnet 5 | Hebrew launch post drafts, never posts | scaffold |
 | `ops` | Claude Haiku 4.5 | daily quota + backup watchdog, alerts on threshold only | scaffold |
@@ -43,6 +43,10 @@ Dockerfile  upstream's, plus COPY souls/ and config/
 
 Automatic cron dispatch is disabled. Existing schedules remain stored for
 inspection; [cost controls](docs/COST-CONTROLS.md) govern any reactivation.
+
+Resume the engineering-agent discussion from
+[the discussion handoff](docs/ENG-DISCUSSION-HANDOFF.md), which records decisions,
+verified findings, remaining limits and proposals awaiting an owner decision.
 
 ## Daily use
 

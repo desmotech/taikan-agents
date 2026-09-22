@@ -30,8 +30,8 @@ def errors(config):
             actual = actual.get(part) if isinstance(actual, dict) else None
         if actual != expected or type(actual) is not type(expected):
             problems.append(".".join(path) + f" must be {expected!r}")
-    if config.get("model", {}).get("default") not in ("claude-sonnet-5", "claude-haiku-4-5"):
-        problems.append("Only cost-reviewed Sonnet 5 and Haiku 4.5 models are permitted")
+    if config.get("model", {}).get("default") not in ("claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"):
+        problems.append("Only cost-reviewed Opus 5, Sonnet 5 and Haiku 4.5 models are permitted")
     if not {"delegation", "cronjob"}.issubset(config.get("agent", {}).get("disabled_toolsets", [])):
         problems.append("Delegation and cronjob toolsets must be disabled")
     return problems

@@ -17,7 +17,7 @@ contract; [the config](../config/eng.yaml) declares its integrations.
 - Sentry, Linear, and GitHub MCP entries retained; PostHog and Railway added.
 - Slack credential prompts for every agent. The entrypoint requires Slack
   tokens and an explicit owner allowlist, and strips legacy platform variables.
-- A Slack destination for the documented morning digest.
+- Opus 5 for requested engineering work; no automatic digest or monitoring.
 - CI validation and image build checks before Railway GitHub autodeploys.
   Follow [the first-deployment setup](RUNBOOK.md#github-ci-and-railway-deployment).
 
@@ -29,8 +29,11 @@ retained only as history.
 
 ## Authority
 
-`eng` independently reads available telemetry and code, prepares local fixes
-and tests, and creates or adds factual updates to deduplicated `FIT` issues.
+`eng` acts only on Saar's direct requests. Within the assigned scope it reads
+available telemetry and code and prepares requested local fixes and tests.
+It proposes next steps and waits for Saar to choose; Linear writes need an
+explicit request. Advice does not authorize implementation. It must not start
+monitoring, preliminary audits, skill creation, or work after task completion.
 It can explain architecture and recommend operational actions from a phone
 conversation. It continues safe work while an action is awaiting approval.
 
@@ -74,9 +77,9 @@ Never paste tokens into Slack, Linear, this repository, or an agent prompt.
 The entrypoint removes legacy platform variables from the gateway process and
 regenerates its `.env` with Slack settings only. It does not delete Railway
 variables or migrate persisted cron jobs. At the approved deployment, supply
-Slack credentials first, remove obsolete variables in Railway, and change any
-existing jobs to Slack delivery. Inspect the cron list before creating jobs
-to avoid duplicate digests. There is no fallback to another chat platform.
+Slack credentials first, remove obsolete variables in Railway, and leave all
+existing jobs disabled. Do not create monitoring jobs or digests. There is
+no fallback to another chat platform.
 
 ## Integrations
 

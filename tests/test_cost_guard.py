@@ -28,6 +28,17 @@ class CostGuardTests(unittest.TestCase):
         self.driver.post()
         self.assertEqual(self.driver.rows()[0][2], 9001)
 
+    def test_opus_uses_reviewed_rates_including_cache(self):
+        self.driver.upstream.usage.update(cache_creation_input_tokens=1000, cache_read_input_tokens=10001)
+        self.assertEqual(self.driver.post({"model": "claude-opus-5"})[0], 200)
+        self.assertEqual(self.driver.generation_calls()[0]["model"], "claude-opus-5")
+        self.assertEqual(self.driver.rows()[0][2:], (22501, 1))
+
+    def test_opus_reservation_blocks_before_generation_near_daily_cap(self):
+        self.driver.spend(1_900_000)
+        self.assertEqual(self.driver.post({"model": "claude-opus-5"})[0], 400)
+        self.assertEqual(self.driver.generation_calls(), [])
+
     def test_output_cap_is_enforced_at_network_boundary(self):
         self.assertEqual(self.driver.post({"max_tokens": 100000})[0], 200)
         self.assertEqual(self.driver.generation_calls()[0]["max_tokens"], 4096)
@@ -44,7 +55,7 @@ class CostGuardTests(unittest.TestCase):
         self.assertEqual(self.driver.generation_calls(), [])
 
     def test_unknown_model_paid_tools_and_api_routes_are_blocked(self):
-        for updates in ({"model": "claude-opus-5"}, {"speed": "fast"},
+        for updates in ({"model": "unreviewed-model"}, {"speed": "fast"},
                         {"tools": [{"type": "web_search_20250305", "name": "web_search"}]},
                         {"service_tier": "priority"}, {"max_tokens": -1}):
             with self.subTest(updates=updates):

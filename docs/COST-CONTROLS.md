@@ -11,7 +11,7 @@ its provider key revoked. Do not restore it merely because a build passes.
 | Control | Default | Enforcement |
 | --- | --- | --- |
 | Activation | Off | `TAIKAN_AGENT_ENABLED` must equal `true` |
-| Routine model | Sonnet 5; ops/release use Haiku 4.5 | Config plus proxy model allowlist; Opus blocked |
+| Model | eng uses Opus 5; ops/release Haiku 4.5; others Sonnet 5 | Config plus reviewed proxy model allowlist |
 | Model calls per foreground turn | 12 | Hermes `agent.max_turns` and inherited iteration limit |
 | Foreground time budget | 180 seconds | Hermes run budget; not a dollar limit |
 | Input | 40,000 estimated tokens per request | Anthropic token counting before generation, including schemas/history |
@@ -30,6 +30,21 @@ The limits are ceilings, not usage targets. No environment variable raises
 the dollar caps: increasing them requires a reviewed code change. The total
 budget does not reset at midnight or after a deployment. Each service has its
 own ledger and cap; multiple services do not share a fleet-wide budget.
+
+## Eng works only on request
+
+Eng uses Opus 5 for foreground engineering. It waits for Saar's direct Slack
+request, stays within that task, then proposes next steps and waits. No
+preliminary audits, automatic monitoring, skill creation or self-improvement.
+Necessary reading, implementation and verification belong to the requested
+task; advisory requests do not authorize implementation. Linear writes also
+require a request. Automatic review, curator and scheduled dispatch remain off.
+Task scope is a soul instruction, not a security sandbox around shell access.
+
+The existing step, time, context, output and spending ceilings remain in place.
+Saar has not selected replacement budgets. Opus can reach the same dollar cap
+sooner; this change does not promise uninterrupted completion. Changing the
+model alone does not remove the 12-call / 180-second foreground limits.
 
 ## Spending boundary
 
@@ -102,7 +117,7 @@ work unfinished; the agent should give the useful findings and next step.
 - [Hermes config defaults](https://github.com/NousResearch/hermes-agent/blob/v2026.8.27/hermes_cli/config_defaults.py)
 - [Hermes automatic review](https://github.com/NousResearch/hermes-agent/blob/v2026.8.27/agent/background_review.py)
 - [Anthropic token counting](https://platform.claude.com/docs/en/build-with-claude/token-counting): free, but estimated counts.
-- [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing): standard Sonnet 5 $2/$10 and Haiku 4.5 $1/$5 per million input/output tokens; cache multipliers.
+- [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing): standard Opus 5 $5/$25, Sonnet 5 $2/$10 and Haiku 4.5 $1/$5 per million input/output tokens; cache multipliers.
 
 CI verifies runtime integration against the built Hermes image. Unsupported
 hook APIs fail closed instead of silently enabling scheduled/review work.
@@ -123,3 +138,11 @@ Asset validation, shell syntax, documentation links and diff whitespace passed.
 No live provider request, Slack calibration, deployment, or provider cap change
 was performed. Production eng has no active deployment; the key revocation is
 owner-reported. Changes are prepared for review, not authorization to restart.
+
+2026-09-22, request-only Opus revision: 31 offline regression tests passed
+in the existing pinned Hermes image with networking disabled and current
+repository scripts mounted read-only. The real Hermes adapter accepted
+streaming/non-streaming Opus requests against a fake provider, accounted at
+reviewed Opus rates, and rejected generation at the budget. Configuration and
+whitespace validation passed. No live behavioral evaluation, paid model call,
+new image build, push or deployment was performed for this revision.

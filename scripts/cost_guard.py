@@ -28,7 +28,7 @@ import yaml
 # Reviewed standard API rates, USD / million tokens (2026-09-22).
 # A cache write is conservatively charged at the 1-hour (2x input) rate.
 # Unknown models, paid server tools, fast mode, and unknown API features fail closed.
-RATES = {"claude-sonnet-5": (2, 10), "claude-haiku-4-5": (1, 5)}
+RATES = {"claude-opus-5": (5, 25), "claude-sonnet-5": (2, 10), "claude-haiku-4-5": (1, 5)}
 DAILY_USD_MICRO = 2_000_000
 TOTAL_USD_MICRO = 10_000_000
 MAX_INPUT = 40_000
@@ -55,7 +55,7 @@ def validate_request(body):
     if not isinstance(body, dict) or set(body) - ALLOWED_FIELDS:
         raise Denied("Unsupported request feature; cost review required.")
     if body.get("model") not in RATES:
-        raise Denied("Model blocked by cost policy; use Sonnet 5 or Haiku 4.5.")
+        raise Denied("Model blocked by cost policy; use a reviewed Opus 5, Sonnet 5 or Haiku 4.5 model.")
     if not isinstance(body.get("messages"), list) or not body["messages"]:
         raise Denied("A bounded Messages request is required.")
     output = body.get("max_tokens")

@@ -26,6 +26,7 @@ def main():
 
         from hermes_cli.config import load_config
         cfg = load_config()
+        assert cfg["model"]["default"] == "claude-opus-5"
         assert cfg["agent"]["max_turns"] == 12
         assert cfg["model"]["max_tokens"] == 4096
         assert cfg["model"]["context_length"] == 40000
@@ -47,21 +48,21 @@ def main():
         try:
             base = f"http://127.0.0.1:{driver.server.server_port}"
             client = build_anthropic_client(driver.server.token, base, timeout=5)
-            result = client.messages.create(model="claude-sonnet-5", max_tokens=4096,
+            result = client.messages.create(model="claude-opus-5", max_tokens=4096,
                                             messages=[{"role": "user", "content": "hello"}])
             assert result.content[0].text == "test"
             assert len(driver.generation_calls()) == 1
-            assert driver.rows()[0][2:] == (3000, 1)
-            with client.messages.stream(model="claude-sonnet-5", max_tokens=4096,
+            assert driver.rows()[0][2:] == (7500, 1)
+            with client.messages.stream(model="claude-opus-5", max_tokens=4096,
                                         messages=[{"role": "user", "content": "hello"}]) as stream:
                 assert "".join(stream.text_stream) == "test"
                 assert stream.get_final_message().usage.output_tokens == 100
             assert len(driver.generation_calls()) == 2
-            assert sum(row[2] for row in driver.rows()) == 6000
-            driver.spend(1_994_000)
+            assert sum(row[2] for row in driver.rows()) == 15000
+            driver.spend(1_985_000)
             import anthropic
             try:
-                client.messages.create(model="claude-sonnet-5", max_tokens=4096,
+                client.messages.create(model="claude-opus-5", max_tokens=4096,
                                        messages=[{"role": "user", "content": "over budget"}])
             except anthropic.BadRequestError:
                 pass

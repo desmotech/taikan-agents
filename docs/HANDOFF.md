@@ -6,6 +6,11 @@
 > older scheduling instructions below do not enable them.
 
 
+Start with [the September 22 discussion record](ENG-DISCUSSION-HANDOFF.md)
+for the cost incident, current Opus/request-only decision, unapproved limit
+changes, Seer discussion and continuation checklist. It supersedes older
+autonomous-monitoring language below.
+
 Current direction: every agent communicates with Saar through Slack. Start
 with [ENG.md](ENG.md), [PRODUCT.md](PRODUCT.md), [RUNBOOK.md](RUNBOOK.md), and
 [UNVERIFIED.md](UNVERIFIED.md).
