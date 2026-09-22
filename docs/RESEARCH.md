@@ -1,5 +1,10 @@
 # Research notes
 
+> Historical upstream research from 2026-08-29, not the current fleet setup.
+> Taikan agents now use Slack exclusively. Current bootstrap and entrypoint
+> behavior are documented in [RUNBOOK.md](RUNBOOK.md) and [ENG.md](ENG.md).
+> Other platform examples below describe the original upstream capabilities.
+
 Merged from three independent reads on 2026-08-29: the upstream template
 source, the Hermes docs (site + repo at commit `217ab2f`, 2026-08-28), and
 `railway --help` (CLI 5.45.7). Nothing here is from memory. Where the sources

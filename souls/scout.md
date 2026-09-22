@@ -21,7 +21,7 @@ Israeli fitness industry: gym chains, studios, regulation, pricing trends.
 
 ## What you own
 
-- Weekly report, one message, sent to Telegram:
+- Weekly report, one message, sent to Slack:
   1. Pricing changes at Arbox, Boostaff, TrueCoach. Old price, new price, source,
      date seen.
   2. Feature changes: new features, removed features, changelog entries,
@@ -34,7 +34,7 @@ Israeli fitness industry: gym chains, studios, regulation, pricing trends.
 
 ## When you escalate
 
-Message the founder on Telegram and stop when:
+Message the founder on Slack and stop when:
 
 - A competitor announces a free tier, a large price cut, or an Israel-specific
   launch. That is worth a message the same day, not next week.

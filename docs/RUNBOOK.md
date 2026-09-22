@@ -3,27 +3,70 @@
 For the founder. Every command was checked against `railway --help` (5.45.7)
 or the Hermes docs; see `RESEARCH.md` for sources.
 
-## Telegram: bot token and your user id
+## Slack: every agent
 
-1. Open Telegram, talk to `@BotFather`, send `/newbot`. Pick a name and a
-   username ending in `bot` (one bot per agent, e.g. `taikan_eng_bot`). BotFather
-   replies with a token like `123456:ABC-...`. That is `TELEGRAM_BOT_TOKEN`.
-2. Your numeric user id: talk to `@userinfobot` (or `@getidsbot`); it replies
-   with a number like `123456789`. That is `TELEGRAM_ALLOWED_USERS` and also
-   `TELEGRAM_HOME_CHANNEL` (your DM chat id equals your user id). Never a
-   username.
-3. Open a chat with the new bot and press Start once, so it can message you.
+Every agent uses its own Slack bot connection. Set `SLACK_BOT_TOKEN`,
+`SLACK_APP_TOKEN`, `SLACK_ALLOWED_USERS` (the owner's member ID), and
+`SLACK_HOME_CHANNEL` (the DM conversation or private channel ID). Both
+`GATEWAY_ALLOW_ALL_USERS` and `SLACK_ALLOW_ALL_USERS` must be `false`.
+The entrypoint requires both tokens and a nonempty owner allowlist.
+
+See [ENG.md](ENG.md#slack-activation) for app setup. The same Slack steps apply
+to all agents; use separate app/bot tokens per agent. `eng` additionally uses
+Sentry, PostHog, Railway, Linear, and GitHub. Live activation is separate from
+editing souls or config.
 
 ## Add a new agent in four steps
 
-1. `souls/<bot>.md`: five sections, under 100 lines, copy the shape of `eng.md`.
+1. `souls/<bot>.md`: define identity, ownership, communication, workflow, and
+   authority. Keep it below Hermes's default 20,000-character context limit.
 2. `config/<bot>.yaml`: copy the closest existing one, set `model.default`,
    add `mcp_servers` if it needs tools. Secrets go in as `${ENV_VAR}`.
 3. `scripts/bootstrap.sh`: if the bot needs extra secrets, add a `case` line.
    Commit and push (the service builds from GitHub, so the files must be there).
 4. `scripts/bootstrap.sh <bot>`, type the secrets at the prompts, then
    `scripts/logs.sh <bot>` and wait for `[bootstrap] Starting Hermes gateway...`.
-   Send the bot a message on Telegram. If it needs cron, see below.
+   Send the bot a message on its configured platform. If it needs cron, see below.
+
+## GitHub CI and Railway deployment
+
+The normal deployment path is GitHub → Actions → Railway. The `CI` workflow
+runs on pull requests and every push to `main`. It validates the fleet assets,
+tests the entrypoint with fake credentials and isolated state, builds the actual
+Dockerfile, and checks that Slack, MCP, and Anthropic dependencies import.
+It does not connect to Slack, call a model, or deploy from GitHub Actions.
+
+For the first deployment:
+
+1. Create the separate `taikan-agents` Railway project. Add one service from
+   `desmotech/taikan-agents`, named `eng`, connected to `main` at the repo root.
+2. Mount a persistent volume at `/data` and keep one replica.
+3. Set `BOT=eng`, `TZ=Asia/Jerusalem`, `GATEWAY_ALLOW_ALL_USERS=false`, and
+   `SLACK_ALLOW_ALL_USERS=false`. Add `ANTHROPIC_API_KEY` and the Slack values
+   from [ENG.md](ENG.md). Add the integration credentials there as available.
+   Docker supplies `HOME=/data` and `HERMES_HOME=/data/.hermes`.
+4. Enable **Wait for CI** in the service's source settings. Keep autodeploy
+   enabled. Accept updated Railway GitHub App permissions if prompted.
+5. Leave `HERMES_GIT_REF` unset so Railway uses the Dockerfile's tested pin.
+   Confirm a green CI run, then inspect the first deployment's boot and perform
+   [the activation checks](ENG.md#activation-checks).
+
+The first source connection can start a build before these settings are ready;
+the gateway refuses to start without Slack tokens and the owner allowlist.
+Configure the service and deploy the latest passing commit once ready.
+
+No Railway token belongs in GitHub Actions. Railway's repository integration
+performs deployment. CI does not cancel `main` runs; failed validation/builds
+must block deployment. [Railway's Wait for CI documentation](https://docs.railway.com/deployments/github-autodeploys)
+describes its treatment of workflow conclusions.
+
+Run the fast checks locally with Python 3.11 or newer:
+
+```sh
+python -m pip install -r requirements-ci.txt
+python scripts/validate.py
+python -m unittest discover -s tests -v
+```
 
 ## Change a soul and ship it
 
@@ -35,25 +78,29 @@ Same for `config/<bot>.yaml`. No `hermes` command is needed.
 ## Cron jobs (registered once per service, stored on the volume)
 
 Hermes has no declarative cron files. Register over Railway SSH, once. They
-persist in `/data/.hermes/cron/jobs.json` across deploys. `--deliver telegram`
-sends to `TELEGRAM_HOME_CHANNEL`. Times are in the service's `timezone`
+persist in `/data/.hermes/cron/jobs.json` across deploys. `--deliver slack`
+sends to `SLACK_HOME_CHANNEL`. Times are in the service's `timezone`
 (`Asia/Jerusalem`).
+
+Inspect `hermes cron list` first. If eng's morning digest already exists,
+update its prompt and delivery using the installed `hermes cron edit --help`;
+do not create a second job. The command below is for a missing job only.
 
 ```
 # eng: morning digest 07:30
 railway ssh --service eng -- hermes cron create "30 7 * * *" \
-  "Morning digest: new Sentry error groups in the last 24h with likely cause, failed GitHub Actions runs on main with the failing step, Linear FIT tickets you opened. If nothing happened reply exactly: Quiet night." \
-  --name "morning-digest" --deliver telegram
+  "Morning digest per SOUL.md: unresolved incidents, new regressions, failed deploys or CI, performance changes, and decisions waiting on Saar. Read connected sources for the last 24h, link FIT issues, and report coverage gaps. Say Quiet night only after successful checks with no actionable findings." \
+  --name "morning-digest" --deliver slack
 
 # ops: daily watchdog 08:00, silence is a pass
 railway ssh --service ops -- hermes cron create "0 8 * * *" \
   "Run the daily checks from your soul: GitHub Actions minutes, Sentry quota, Railway usage, last night's Postgres backup in R2 (exists, under 26h old, non-zero, size vs previous). If every check passes reply exactly: [SILENT]. Otherwise report only the crossed thresholds." \
-  --name "daily-watchdog" --deliver telegram
+  --name "daily-watchdog" --deliver slack
 
 # scout: weekly report, Sunday 09:00
 railway ssh --service scout -- hermes cron create "0 9 * * 0" \
   "Weekly market report: pricing and feature changes at Arbox, Boostaff, TrueCoach since last week, and up to five Israeli fitness industry news items. Diff against your memory. If nothing changed say so in one line." \
-  --name "weekly-report" --deliver telegram
+  --name "weekly-report" --deliver slack
 ```
 
 ### Release status monitor
@@ -69,10 +116,10 @@ Register a read-only monitor if desired:
 ```
 railway ssh --service release -- hermes cron create "*/15 * * * *" \
   "Monitor branded-app releases using release-client.py list. Report only status changes and actionable owner-safe blockers. Never execute an operation. If nothing changed reply exactly: [SILENT]." \
-  --name "release-status-monitor" --deliver telegram
+  --name "release-status-monitor" --deliver slack
 ```
 
-Telegram can never grant store-review or public-release approval. The bot may
+Slack can never grant store-review or public-release approval. The bot may
 only nudge an already-approved internal-upload operation after an explicit
 human request; the backend rechecks the stored approval and dispatches the
 protected workflow. Store review and public release remain manual console
@@ -91,9 +138,10 @@ Manage: `railway ssh --service <bot> -- hermes cron list|pause <id>|resume <id>|
   the container without rebuilding. The volume is untouched.
 - Still stuck: `railway ssh --service eng -- hermes doctor`, then
   `scripts/deploy.sh eng` for a full rebuild from the latest commit.
-- Bot ignores you: check `TELEGRAM_ALLOWED_USERS` is your numeric id
-  (`railway variable list --service eng`). Or approve a pairing code:
-  `railway ssh --service eng -- hermes pairing list`.
+- Bot ignores you: check `SLACK_ALLOWED_USERS` against your Slack member ID
+  and follow [ENG.md](ENG.md). Inspect only the needed setting in the dashboard;
+  `railway variable list` can expose every secret. Inspect pending pairing
+  requests with `hermes pairing list`; approve only the verified owner.
 
 ## Inspect the volume
 
@@ -115,12 +163,14 @@ Never run `hermes update` on Railway. It git-pulls `main` into the image, which
 is thrown away on the next deploy and is not what Git says you run. Instead:
 
 1. Pick a tag from https://github.com/NousResearch/hermes-agent/releases.
-2. `railway variable set HERMES_GIT_REF=v2026.9.x --service eng` (repeat per service). Variables changes trigger a deploy; or run `scripts/deploy.sh eng`.
+2. Update the Dockerfile's `HERMES_GIT_REF` default, `scripts/bootstrap.sh`, and
+   `.env.example` together. Commit and push after approval; CI builds the new
+   runtime before Railway deploys it. Remove any old Railway ref override so
+   the service uses the tested Dockerfile default.
 3. After it boots: `railway ssh --service eng -- hermes config check`, and if it
    reports new options, `railway ssh --service eng -- hermes config migrate`.
    Note: `config.yaml` is overwritten from Git on the next boot, so copy any
    change migrate makes into `config/eng.yaml` and push it.
-4. Update the default in `scripts/bootstrap.sh` and `.env.example`.
 
 Railway SSH is the way to run any one-off `hermes` command against a live
 service: `railway ssh --service <bot> -- hermes <cmd>`.

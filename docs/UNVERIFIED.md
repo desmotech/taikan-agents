@@ -22,16 +22,16 @@ safe default I used. None is a silent guess.
    a root refusal, add `HERMES_ALLOW_ROOT_GATEWAY=1` as a Railway variable
    (documented var) and redeploy.
 
-3. **Bearer auth on the remote MCP servers.** Hermes documents `headers:
-   Authorization: Bearer ${VAR}` as a valid shape. Whether each server accepts a
-   plain token this way is a server-side question I could not verify from the
-   Hermes docs: Sentry (`mcp.sentry.dev`), Linear (`mcp.linear.app`, documented
-   in Hermes as OAuth), GitHub (`api.githubcopilot.com/mcp/`), PostHog
-   (`mcp.posthog.com`). Default: bearer header for all four. If one rejects it,
+3. **Live authentication on the remote MCP servers.** Linear and PostHog now
+   document API-key bearer authentication (sources in [ENG.md](ENG.md)); the
+   actual credentials and scopes still need live verification. Sentry bearer
+   compatibility remains unverified, as does the configured GitHub connection.
+   Current default: bearer header for these four. If one rejects it,
    change that entry to `auth: oauth` and run `hermes mcp login <name>` over
    Railway SSH; the OAuth flow on a headless box needs the paste-back of the
    redirect URL (documented in Hermes' mcp guide). `eng` also has the `gh` CLI
-   and `GITHUB_TOKEN` in the image, so GitHub works even if that MCP does not.
+   and `GITHUB_TOKEN` in the image, providing an alternative to test if that MCP
+   fails; credentials and scopes still need verification.
 
 4. **`railway service list --json` and `railway volume list --json` shapes.**
    Not shown in `--help`. `bootstrap.sh` greps for the service name and for
@@ -72,3 +72,17 @@ safe default I used. None is a silent guess.
     Railway GitHub App". The script passes `--branch`. If the connect step still
     fails, install the Railway GitHub App on `desmotech/taikan-agents` from the
     dashboard and re-run.
+
+11. **Fleet Slack activation.** Native Hermes Slack requires both bot and
+    app-level Socket Mode tokens; the entrypoint validates both and an owner
+    allowlist. The owner's tokens, scopes/events, destination, and actual replies
+    have not been checked. Legacy platform variables are stripped before the
+    gateway starts; existing Railway variables and persisted cron destinations
+    still need cleanup during deployment. Follow [ENG.md](ENG.md).
+
+12. **eng Railway MCP.** The remote endpoint and OAuth are documented; login,
+    refresh, project access, and tool discovery on pinned Hermes remain
+    unverified. Hosted Railway exposes an action-capable `railway-agent`; do
+    not claim read-only log/metric coverage until a direct read path is verified.
+    The soul requires approval before delegating to that tool. No Railway CLI
+    or runtime upgrade is included in this change.

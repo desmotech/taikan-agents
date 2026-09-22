@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    name: Validate configuration and gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ci.txt
+      - name: Install validation dependencies
+        run: python -m pip install -r requirements-ci.txt
+      - name: Check shell syntax
+        run: |
+          for script in scripts/*.sh; do
+            bash -n "$script"
+          done
+      - name: Validate agent assets and Railway configuration
+        run: python scripts/validate.py
+      - name: Check Python syntax
+        run: python -m compileall -q scripts tests
+      - name: Exercise gateway startup without credentials or network
+        run: python -m unittest discover -s tests -v
+      - name: Check patch whitespace
+        run: git show --format= --check HEAD
+
+  image:
+    name: Build and smoke-test runtime image
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build the Railway Dockerfile
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: taikan-agents:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify runtime dependencies and bundled eng assets
+        run: |
+          docker run --rm --network none --entrypoint /bin/bash taikan-agents:ci -ec '
+            command -v hermes
+            test -x /app/scripts/entrypoint.sh
+            test -x /app/scripts/release-client.py
+            test -s /app/souls/eng.md
+            test -s /app/config/eng.yaml
+            python -c "import anthropic, mcp, slack_bolt, slack_sdk"
+          '

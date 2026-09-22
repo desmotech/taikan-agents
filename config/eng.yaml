@@ -1,4 +1,4 @@
-# eng - engineering triage. Model: Claude Opus 5.
+# eng - lead architect, software engineer, stability/on-call/performance.
 # Shared base: keys verified against the Hermes docs (see docs/RESEARCH.md).
 # Secrets are never here. They come from Railway Variables via ${HERMES_HOME}/.env
 # and the process environment. ${VAR} in mcp_servers.*.headers resolves from both.
@@ -25,10 +25,10 @@ model:
   provider: anthropic
   default: claude-opus-5
 
-# Tools: Sentry, Linear, GitHub via remote (HTTP) MCP servers.
-# Auth style per server is UNVERIFIED (see docs/UNVERIFIED.md #3). If a server
-# rejects the bearer header, switch that entry to 'auth: oauth' and complete the
-# login over Railway SSH: hermes mcp login <name>.
+# Slack uses SLACK_BOT_TOKEN + SLACK_APP_TOKEN from the environment, with
+# SLACK_ALLOWED_USERS and SLACK_HOME_CHANNEL. See docs/ENG.md for activation.
+# MCP configuration is not proof of a live connection. Test each integration.
+# Railway OAuth credentials persist on the volume; no Railway CLI is required.
 mcp_servers:
   sentry:
     url: "https://mcp.sentry.dev/mcp"
@@ -46,5 +46,16 @@ mcp_servers:
     url: "https://api.githubcopilot.com/mcp/"
     headers:
       Authorization: "Bearer ${GITHUB_TOKEN}"
+    enabled: true
+    timeout: 120
+  posthog:
+    url: "https://mcp.posthog.com/mcp?readonly=true"
+    headers:
+      Authorization: "Bearer ${POSTHOG_API_KEY}"
+    enabled: true
+    timeout: 120
+  railway:
+    url: "https://mcp.railway.com"
+    auth: oauth
     enabled: true
     timeout: 120

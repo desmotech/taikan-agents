@@ -75,6 +75,7 @@ else
     --variables "HOME=/data" \
     --variables "TZ=Asia/Jerusalem" \
     --variables "GATEWAY_ALLOW_ALL_USERS=false" \
+    --variables "SLACK_ALLOW_ALL_USERS=false" \
     --json >/dev/null
   echo "   created"
 fi
@@ -82,9 +83,9 @@ fi
 log "Non-secret variables (converge)"
 railway variable set \
   "BOT=$BOT" "HERMES_GIT_REF=$HERMES_GIT_REF" "HERMES_HOME=/data/.hermes" "HOME=/data" \
-  "TZ=Asia/Jerusalem" "GATEWAY_ALLOW_ALL_USERS=false" \
+  "TZ=Asia/Jerusalem" "GATEWAY_ALLOW_ALL_USERS=false" "SLACK_ALLOW_ALL_USERS=false" \
   --service "$BOT" --environment "$RAILWAY_ENV" --skip-deploys --json >/dev/null
-echo "   BOT HERMES_GIT_REF HERMES_HOME HOME TZ GATEWAY_ALLOW_ALL_USERS"
+echo "   BOT HERMES_GIT_REF HERMES_HOME HOME TZ GATEWAY_ALLOW_ALL_USERS SLACK_ALLOW_ALL_USERS"
 
 log "Volume at /data"
 if railway volume list --service "$BOT" --environment "$RAILWAY_ENV" --json 2>/dev/null | grep -q '"/data"'; then
@@ -96,11 +97,14 @@ fi
 
 log "Secrets (typed here, never read from a file, never echoed)"
 set_secret ANTHROPIC_API_KEY   "ANTHROPIC_API_KEY"
-set_secret TELEGRAM_BOT_TOKEN  "TELEGRAM_BOT_TOKEN (from @BotFather)"
-set_plain  TELEGRAM_ALLOWED_USERS "TELEGRAM_ALLOWED_USERS (your numeric Telegram user id)"
-set_plain  TELEGRAM_HOME_CHANNEL  "TELEGRAM_HOME_CHANNEL (same id; where cron output is delivered)"
+set_secret SLACK_BOT_TOKEN "SLACK_BOT_TOKEN (this agent's bot OAuth token)"
+set_secret SLACK_APP_TOKEN "SLACK_APP_TOKEN (same app, Socket Mode, connections:write)"
+set_plain SLACK_ALLOWED_USERS "SLACK_ALLOWED_USERS (your Slack member id)"
+set_plain SLACK_HOME_CHANNEL "SLACK_HOME_CHANNEL (your DM or private channel id)"
 case "$BOT" in
-  eng)     set_secret SENTRY_AUTH_TOKEN "SENTRY_AUTH_TOKEN"; set_secret LINEAR_API_KEY "LINEAR_API_KEY"; set_secret GITHUB_TOKEN "GITHUB_TOKEN (read-only PAT)";;
+  eng)     set_secret SENTRY_AUTH_TOKEN "SENTRY_AUTH_TOKEN"; set_secret LINEAR_API_KEY "LINEAR_API_KEY"; set_secret GITHUB_TOKEN "GITHUB_TOKEN (read-only PAT)"
+           set_secret POSTHOG_API_KEY "POSTHOG_API_KEY (personal API key restricted to Taikan, read scopes)"
+           manual "After eng boots, complete Railway MCP OAuth in its Hermes profile; see docs/ENG.md.";;
   ops)     set_secret GITHUB_TOKEN "GITHUB_TOKEN"; set_secret SENTRY_AUTH_TOKEN "SENTRY_AUTH_TOKEN"; set_secret RAILWAY_API_TOKEN "RAILWAY_API_TOKEN"
            set_secret R2_ACCESS_KEY_ID "R2_ACCESS_KEY_ID"; set_secret R2_SECRET_ACCESS_KEY "R2_SECRET_ACCESS_KEY"
            set_plain R2_ENDPOINT "R2_ENDPOINT"; set_plain R2_BACKUP_BUCKET "R2_BACKUP_BUCKET";;

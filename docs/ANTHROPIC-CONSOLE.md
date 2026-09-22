@@ -72,7 +72,7 @@ Whether Hermes passes them through unchanged is still open - see
 
 Railway adds roughly $3-8/month per service for the container, plus $0.15/GB for
 the volume, whether or not the agent does anything. That idle cost is the price
-of the always-on Telegram interface; it is the main thing a managed-agent
+of the always-on Slack interface; it is the main thing a managed-agent
 platform would have avoided. The tradeoff was taken deliberately - see
 `docs/WEBHOOKS.md` and the decision note below.
 
@@ -86,12 +86,10 @@ credential vaults where secrets never enter the sandbox at all. That last point
 is a genuine security advantage over this design, where the agent has a shell
 and its tokens sit in the container environment.
 
-It was rejected because it has no chat interface. Telegram is the only human
-interface for this fleet, and Managed Agents would need a self-hosted bridge to
-hold the bot connection and map messages onto sessions - which is most of what
-Hermes provides for free. Telegram's API also puts the bot token in the URL
-path, and vault substitution covers headers and body only, so the vault's main
-benefit would not have applied to the one integration that matters most here.
+The recorded reason was the need for a persistent chat interface and a bridge
+to map messages onto sessions. The fleet now uses Slack through Hermes's
+native adapter. The original transport-specific credential rationale no longer
+applies; this change does not reopen the runtime choice.
 
 Secondary reasons: the agents' configuration stays in Git and under review, and
 Hermes is open source and portable across model providers.

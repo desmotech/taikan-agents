@@ -19,27 +19,18 @@ is_true() {
   esac
 }
 
-validate_platforms() {
-  local count=0
-
-  if [[ -n "${TELEGRAM_BOT_TOKEN:-}" ]]; then
-    count=$((count + 1))
+validate_slack() {
+  local allowed_users="${SLACK_ALLOWED_USERS:-}"
+  if [[ -z "${SLACK_BOT_TOKEN:-}" || -z "${SLACK_APP_TOKEN:-}" ]]; then
+    echo "[bootstrap] ERROR: Slack requires both SLACK_BOT_TOKEN and SLACK_APP_TOKEN." >&2
+    exit 1
   fi
-
-  if [[ -n "${DISCORD_BOT_TOKEN:-}" ]]; then
-    count=$((count + 1))
+  if [[ -z "${allowed_users//[[:space:],]/}" ]]; then
+    echo "[bootstrap] ERROR: Set SLACK_ALLOWED_USERS to the owner's Slack member ID." >&2
+    exit 1
   fi
-
-  if [[ -n "${SLACK_BOT_TOKEN:-}" || -n "${SLACK_APP_TOKEN:-}" ]]; then
-    if [[ -z "${SLACK_BOT_TOKEN:-}" || -z "${SLACK_APP_TOKEN:-}" ]]; then
-      echo "[bootstrap] ERROR: Slack requires both SLACK_BOT_TOKEN and SLACK_APP_TOKEN." >&2
-      exit 1
-    fi
-    count=$((count + 1))
-  fi
-
-  if [[ "$count" -lt 1 ]]; then
-    echo "[bootstrap] ERROR: Configure at least one platform: Telegram, Discord, or Slack." >&2
+  if is_true "${GATEWAY_ALLOW_ALL_USERS:-}" || is_true "${SLACK_ALLOW_ALL_USERS:-}"; then
+    echo "[bootstrap] ERROR: Slack requires an explicit owner allowlist; allow-all must be disabled." >&2
     exit 1
   fi
 }
@@ -161,7 +152,15 @@ if ! has_valid_provider_config; then
   exit 1
 fi
 
-validate_platforms
+validate_slack
+
+# Hermes also reads the inherited environment. Remove legacy platform settings
+# before writing .env so an old service token cannot enable another gateway.
+for key in $(compgen -e); do
+  case "$key" in
+    TELEGRAM_*|DISCORD_*|WHATSAPP_*) unset "$key" ;;
+  esac
+done
 
 migrate_legacy_messaging_cwd
 
@@ -173,9 +172,7 @@ echo "[bootstrap] Writing runtime env to ${ENV_FILE}"
 
 for key in \
   OPENROUTER_API_KEY OPENAI_API_KEY OPENAI_BASE_URL ANTHROPIC_API_KEY ANTHROPIC_TOKEN GOOGLE_API_KEY GEMINI_API_KEY XAI_API_KEY DEEPSEEK_API_KEY DASHSCOPE_API_KEY KIMI_API_KEY GLM_API_KEY HF_TOKEN AI_GATEWAY_API_KEY MINIMAX_API_KEY COPILOT_GITHUB_TOKEN LLM_MODEL HERMES_INFERENCE_PROVIDER HERMES_PORTAL_BASE_URL NOUS_INFERENCE_BASE_URL HERMES_NOUS_MIN_KEY_TTL_SECONDS HERMES_DUMP_REQUESTS \
-  TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_USERS TELEGRAM_ALLOW_ALL_USERS TELEGRAM_HOME_CHANNEL TELEGRAM_HOME_CHANNEL_NAME TELEGRAM_PROXY \
-  DISCORD_BOT_TOKEN DISCORD_ALLOWED_USERS DISCORD_ALLOW_ALL_USERS DISCORD_HOME_CHANNEL DISCORD_HOME_CHANNEL_NAME DISCORD_REQUIRE_MENTION DISCORD_FREE_RESPONSE_CHANNELS DISCORD_REPLY_TO_MODE \
-  SLACK_BOT_TOKEN SLACK_APP_TOKEN SLACK_ALLOWED_USERS SLACK_ALLOW_ALL_USERS SLACK_HOME_CHANNEL SLACK_HOME_CHANNEL_NAME WHATSAPP_ENABLED WHATSAPP_ALLOWED_USERS \
+  SLACK_BOT_TOKEN SLACK_APP_TOKEN SLACK_ALLOWED_USERS SLACK_ALLOW_ALL_USERS SLACK_HOME_CHANNEL SLACK_HOME_CHANNEL_NAME \
   GATEWAY_ALLOW_ALL_USERS API_SERVER_ENABLED API_SERVER_KEY API_SERVER_PORT API_SERVER_HOST API_SERVER_MODEL_NAME \
   FIRECRAWL_API_KEY NOUS_API_KEY BROWSERBASE_API_KEY BROWSERBASE_PROJECT_ID BROWSERBASE_PROXIES BROWSERBASE_ADVANCED_STEALTH BROWSER_SESSION_TIMEOUT BROWSER_INACTIVITY_TIMEOUT FAL_KEY ELEVENLABS_API_KEY VOICE_TOOLS_OPENAI_KEY \
   TINKER_API_KEY WANDB_API_KEY RL_API_URL GITHUB_TOKEN \
@@ -190,12 +187,6 @@ if [[ ! -f "$INIT_MARKER" ]]; then
   echo "[bootstrap] First-time initialization completed."
 else
   echo "[bootstrap] Existing Hermes data found. Skipping one-time init."
-fi
-
-if [[ -z "${TELEGRAM_ALLOWED_USERS:-}${DISCORD_ALLOWED_USERS:-}${SLACK_ALLOWED_USERS:-}" ]]; then
-  if ! is_true "${GATEWAY_ALLOW_ALL_USERS:-}" && ! is_true "${TELEGRAM_ALLOW_ALL_USERS:-}" && ! is_true "${DISCORD_ALLOW_ALL_USERS:-}" && ! is_true "${SLACK_ALLOW_ALL_USERS:-}"; then
-    echo "[bootstrap] WARNING: No allowlists configured. Gateway defaults to deny-all; use DM pairing or set *_ALLOWED_USERS." >&2
-  fi
 fi
 
 # taikan-agents: Git is the source of truth for identity and config.

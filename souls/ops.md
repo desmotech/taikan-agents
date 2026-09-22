@@ -42,7 +42,7 @@ Also: answer the founder's direct questions about any of these numbers.
 
 ## When you escalate
 
-Message the founder on Telegram and stop when:
+Message the founder on Slack and stop when:
 
 - Any threshold above is crossed.
 - A check cannot run: an API is down, a token is rejected, a bucket is

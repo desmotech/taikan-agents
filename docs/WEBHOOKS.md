@@ -4,6 +4,8 @@ Research-only. Nothing here is deployed. Verified against
 NousResearch/hermes-agent @ main (`gateway/platforms/webhook.py`,
 `gateway/platforms/webhook_filters.py`) and the Hermes + Sentry docs.
 Add the config in this file only AFTER a plain `eng` boot is confirmed good.
+The current role and authority are in [ENG.md](ENG.md) and `souls/eng.md`;
+the trigger wiring below still needs live verification.
 
 ## Why not cron polling
 
@@ -19,7 +21,7 @@ var also read; Railway's own `PORT` is NOT read - set it explicitly).
 Host default `None` = listens on all interfaces v4+v6, which is what Railway
 needs; no config change required.
 
-Runs alongside `platforms.telegram` in the same gateway process.
+Runs alongside the Slack connection in the same gateway process.
 
 POST `/webhooks/<route>` returns **202 immediately** and runs the agent in a
 background task. This is what makes Sentry viable at all: Sentry treats >1s as
@@ -57,7 +59,7 @@ answers with no tool access, which is the worst failure mode available.
 
 A route's `profile:` binds it to a separate Hermes profile with its own
 `config.yaml`, and each profile carries its own `model:`. So webhook triage can
-run on Haiku while Telegram chat stays on Opus. Requires
+run on Haiku while Slack chat stays on Opus. Requires
 `gateway.multiplex_profiles: true`, a created profile, and the route served at
 `/p/<profile>/webhooks/<route>`. Adds real complexity - only worth it if
 webhook volume makes Opus spend hurt.
@@ -109,7 +111,7 @@ deliveries, so this matches only completed-and-failed on main:
         Run: {workflow_run.html_url}
         Read the failing step's logs, quote the real error line, and say
         whether it is code, infra, or flake. Do not open a ticket; ask first.
-      deliver: "telegram"
+      deliver: "slack"
 
 Operators available: `exists`, `missing`, `equals`, `not_equals`, `contains`,
 `in`, `in_file`, `regex`. Explicit `all`/`any`/`not` groups nest.
@@ -131,7 +133,7 @@ calls for noise it could have dropped itself.
 
 ### 3. Linear - skip
 
-eng writes to Linear; it has no reason to react to Linear events. A webhook
+eng uses Linear as its incident ledger; no Linear trigger is configured. A webhook
 with no consumer is just more attack surface. (`linear-signature` is natively
 supported if this ever changes.)
 
@@ -143,14 +145,13 @@ webhooks, and with which header, is UNVERIFIED. Do not wire until confirmed.
 ## Escalation policy, not just plumbing
 
 The webhook is the nerve; the judgement stays in SOUL.md. Intended behaviour:
-investigate on arrival (eng is read-only, so investigation has no blast
-radius), but only MESSAGE on the escalation bar already in souls/eng.md
-(payments / auth / member data, >100 events/hr, suspected data loss, 3x CI
-failure on main). Everything else folds into the 07:30 digest. Ask before
-writing anything - "root cause looks like X, open a FIT ticket?" - rather than
-asking before reading.
+investigate on arrival using direct read tools, and notify Saar on Slack at the
+impact-based escalation bar in `souls/eng.md`. Everything else folds into the
+07:30 digest. Deduplicated incident tickets and factual updates are permitted
+by the soul; production actions require explicit approval. The CI route above
+deliberately narrows its run to diagnosis without ticket creation.
 
-Keep one plain Sentry alert rule going to email/Telegram independently. If the
+Keep one plain Sentry alert rule going to email/Slack independently. If the
 container is down, so is agent-based paging; the siren must not depend on the
 analyst.
 
