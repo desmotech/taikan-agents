@@ -24,7 +24,7 @@ cron:
 
 model:
   provider: anthropic
-  context_length: 40000
+  context_length: 64000
   max_tokens: 4096
   default: claude-haiku-4-5
 

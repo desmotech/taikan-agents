@@ -94,6 +94,15 @@ class CostGuardDriver:
     def generation_calls(self):
         return [b for p, b in self.upstream.requests if p == "/v1/messages"]
 
+    def get(self, path="/v1/models", *, token=None):
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=10)
+        try:
+            conn.request("GET", path, headers={"x-api-key": self.server.token if token is None else token})
+            response = conn.getresponse()
+            return response.status, json.loads(response.read())
+        finally:
+            conn.close()
+
     def rows(self):
         with self.ledger.connect() as db:
             return db.execute("SELECT model, usd_micro FROM calls ORDER BY id").fetchall()

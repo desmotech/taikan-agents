@@ -35,7 +35,7 @@ local ledger.
 | Model | Opus 5 | Sonnet 5; ops/release Haiku 4.5 | Config plus reviewed proxy allowlist |
 | Auxiliary side-calls | Haiku 4.5 | Own main model; compression on Haiku 4.5 | Config `auxiliary.*` |
 | Model calls per Slack message | 40 | 12 | Hermes `agent.max_turns` |
-| Context | 120,000 tokens | 40,000 tokens | `model.context_length` |
+| Context | 120,000 tokens | 64,000 tokens | `model.context_length` |
 | Output per call, including thinking | 16,384 tokens | 4,096 tokens | Config, plus a 16,384 clamp at the network boundary |
 | Compression | At 80,000 tokens | At 24,000 tokens | Explicit threshold, bounded retained tail |
 | Reasoning effort | high | low | Config |
@@ -48,7 +48,9 @@ local ledger.
 | Repeated failures / no progress | Hard stop after 2 identical failures or 3 same-tool failures | Same | Hermes loop guard |
 
 The validator treats eng's numbers as **fleet maxima**: another agent may be
-configured lower, never higher. Raising a maximum is a reviewed code change.
+configured lower, never higher. Context must be at least 64,000 tokens, the
+minimum Hermes accepts; the 24,000-token compression threshold keeps other
+agents compact. Raising a maximum is a reviewed code change.
 
 ## The 40-call checkpoint
 
@@ -93,6 +95,8 @@ guard:
   (pool entries and provider logins that would reach a provider directly);
   MCP OAuth tokens in `mcp-tokens/` are untouched;
 - admits only `claude-opus-5`, `claude-sonnet-5` and `claude-haiku-4-5`;
+- exposes that reviewed allowlist through authenticated `GET /v1/models` for
+  Hermes model discovery (local metadata, not proof of upstream account access);
 - forces the standard service tier, refusing batch, fast and priority modes;
 - refuses provider-hosted paid server tools;
 - clamps `max_tokens` to 16,384;

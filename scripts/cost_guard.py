@@ -24,6 +24,7 @@ import sqlite3
 import subprocess
 import sys
 import threading
+from urllib.parse import urlsplit
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
@@ -190,6 +191,24 @@ class Handler(BaseHTTPRequestHandler):
             "type": kind, "message": "Taikan cost guard: " + message,
         }}).encode()
         self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        if not hmac.compare_digest(self.headers.get("x-api-key", ""), self.server.token):
+            self.fail(401, "authentication_error", "Invalid local gateway credential.")
+            return
+        if urlsplit(self.path).path != "/v1/models":
+            self.fail(404, "not_found_error", "Only model discovery is supported.")
+            return
+        # Advertise the gateway's reviewed allowlist, not Hermes's stale bundled
+        # catalog. This is local metadata, not a check of upstream account access.
+        models = [{"id": model, "type": "model", "display_name": model} for model in RATES]
+        data = json.dumps({"data": models, "has_more": False,
+                           "first_id": models[0]["id"], "last_id": models[-1]["id"]}).encode()
+        self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()

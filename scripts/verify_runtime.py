@@ -4,6 +4,7 @@
 import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import threading
 
@@ -15,7 +16,28 @@ from cost_guard_driver import CostGuardDriver
 from runtime_policy import prepare, install_hooks
 
 
+def verify_product_init():
+    with tempfile.TemporaryDirectory() as home:
+        os.environ["HERMES_HOME"] = home
+        os.environ["ANTHROPIC_API_KEY"] = "taikan-local-test"
+        os.environ["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:12345"
+        config = yaml.safe_load((ROOT / "config/product.yaml").read_text())
+        config["mcp_servers"] = {}  # The initialization check never contacts integrations.
+        path = Path(home) / "config.yaml"
+        path.write_text(yaml.safe_dump(config))
+        prepare(path)
+        from run_agent import AIAgent
+        agent = AIAgent(model=config["model"]["default"], provider="anthropic",
+                        base_url=os.environ["ANTHROPIC_BASE_URL"], api_key="taikan-local-test",
+                        enabled_toolsets=[], skip_context_files=True, skip_memory=True,
+                        skip_background_review=True, quiet_mode=True, max_tokens=4096)
+        assert agent.context_compressor.context_length == 64000
+        print("Product agent initializes with a 64K context window.")
+
+
 def main():
+    # Fresh process: Hermes caches config and home paths at import time.
+    subprocess.run([sys.executable, __file__, "--product-init"], check=True)
     with tempfile.TemporaryDirectory() as home:
         os.environ["HERMES_HOME"] = home
         os.environ["ANTHROPIC_API_KEY"] = "taikan-local-test"
@@ -60,6 +82,11 @@ def main():
         driver = CostGuardDriver()
         try:
             base = f"http://127.0.0.1:{driver.server.server_port}"
+            from hermes_cli.models import _fetch_anthropic_models
+            models = _fetch_anthropic_models(base_url=base, api_key=driver.server.token)
+            assert models is not None and "claude-opus-5" in models, models
+            assert set(models) == {"claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"}, models
+            assert driver.upstream.requests == []
             client = build_anthropic_client(driver.server.token, base, timeout=5)
             result = client.messages.create(model="claude-opus-5", max_tokens=16384,
                                             messages=[{"role": "user", "content": "hello"}])
@@ -91,4 +118,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if "--product-init" in sys.argv:
+        verify_product_init()
+    else:
+        main()

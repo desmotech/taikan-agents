@@ -18,6 +18,7 @@ MAXIMA = {
     ("model", "max_tokens"): 16_384,
     ("compression", "threshold_tokens"): 80_000,
 }
+MIN_CONTEXT_LENGTH = 64_000  # Hermes refuses to initialize below this window.
 REQUIRED = {
     ("model", "provider"): "anthropic",
     ("compression", "enabled"): True,
@@ -47,6 +48,9 @@ def errors(config):
         actual = lookup(config, path)
         if type(actual) is not int or not 0 < actual <= maximum:
             problems.append(".".join(path) + f" must be a positive integer <= {maximum}")
+    context = lookup(config, ("model", "context_length"))
+    if type(context) is int and context < MIN_CONTEXT_LENGTH:
+        problems.append(f"model.context_length must be >= {MIN_CONTEXT_LENGTH} (Hermes minimum)")
     model = lookup(config, ("model", "default"))
     if model not in ("claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"):
         problems.append("Only cost-reviewed Opus 5, Sonnet 5 and Haiku 4.5 models are permitted")

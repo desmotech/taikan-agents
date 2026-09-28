@@ -18,6 +18,21 @@ class CostGuardTests(unittest.TestCase):
         self.assertIn('"text": "test"', body)
         self.assertEqual(self.driver.rows(), [("claude-sonnet-5", 3000)])
 
+    def test_model_discovery_lists_reviewed_models_without_provider_calls(self):
+        status, body = self.driver.get("/v1/models?limit=1000")
+        self.assertEqual(status, 200)
+        self.assertEqual({m["id"] for m in body["data"]},
+                         {"claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"})
+        self.assertFalse(body["has_more"])
+        self.assertEqual(self.driver.upstream.requests, [])
+        self.assertEqual(self.driver.rows(), [])
+
+    def test_model_discovery_requires_local_credential_and_rejects_other_routes(self):
+        for token in ("", "wrong"):
+            self.assertEqual(self.driver.get(token=token)[0], 401)
+        self.assertEqual(self.driver.get("/v1/other")[0], 404)
+        self.assertEqual(self.driver.upstream.requests, [])
+
     def test_stream_usage_is_accounted(self):
         status, body, headers = self.driver.post({"stream": True})
         self.assertEqual(status, 200)

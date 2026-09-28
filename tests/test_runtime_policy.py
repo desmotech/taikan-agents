@@ -14,6 +14,13 @@ def load(name):
 
 
 class RuntimePolicyTests(unittest.TestCase):
+    def test_context_window_meets_hermes_minimum(self):
+        for context in (40_000, 63_999, 64_000, 120_000):
+            config = load("product")
+            config["model"]["context_length"] = context
+            with self.subTest(context=context):
+                self.assertEqual(bool(errors(config)), context < 64_000)
+
     def test_limits_above_eng_maxima_are_rejected(self):
         for path, value in ((("agent", "max_turns"), 41), (("model", "context_length"), 120_001),
                             (("model", "max_tokens"), 16_385), (("compression", "threshold_tokens"), 80_001),
