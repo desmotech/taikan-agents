@@ -107,8 +107,9 @@ class CostGuardTests(unittest.TestCase):
         self.assertNotIn("HERMES_MAX_ITERATIONS", env)
         self.assertEqual(env["ANTHROPIC_BASE_URL"], "http://127.0.0.1:12345")
         self.assertNotIn("LLM_MODEL", env)
-        with self.assertRaises(Denied):
-            child_environment({"OPENROUTER_API_KEY": "alternate-secret"}, "local-token", 12345)
+        for name in ("OPENROUTER_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"):
+            with self.subTest(name=name), self.assertRaises(Denied):
+                child_environment({name: "alternate-secret"}, "local-token", 12345)
 
 
 if __name__ == "__main__":

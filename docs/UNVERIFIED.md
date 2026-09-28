@@ -24,12 +24,11 @@ safe default I used. None is a silent guess.
    the 1800-second wrap-up notice arrives before the call checkpoint, are
    unknown. Measure them on the first bounded task.
 
-2. **Root gateway.** The official Hermes Docker page says the gateway refuses to
-   run as root unless `HERMES_ALLOW_ROOT_GATEWAY=1`. The template image runs as
-   root and its README implies it works, so that check may be specific to the
-   official image's entrypoint. Default: set nothing. If the first deploy logs
-   a root refusal, add `HERMES_ALLOW_ROOT_GATEWAY=1` as a Railway variable
-   (documented var) and redeploy.
+2. **Root gateway — resolved 2026-09-28.** Hermes no longer runs as root: the
+   cost guard supervisor runs it as the unprivileged `hermes` user (uid 10001).
+   A full boot of the image with `--network none` confirmed the gateway starts
+   under that user and cannot read the supervisor's or PID 1's environment.
+   `HERMES_ALLOW_ROOT_GATEWAY` is not needed.
 
 3. **Live authentication on the remote MCP servers.** Linear and PostHog now
    document API-key bearer authentication (sources in [ENG.md](ENG.md)); the

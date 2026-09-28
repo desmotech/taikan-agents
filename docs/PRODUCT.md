@@ -17,8 +17,9 @@ from Slack. Eng supplies engineering feasibility and operational judgment.
    evidence standards, risk assessment, and authority.
 2. **Knowledge:** GitHub gives it the canonical docs and relevant code at a
    known revision; Linear gives current planning context; PostHog provides
-   aggregate behavioral evidence. It builds an index with actual read coverage
-   instead of embedding hundreds of changing documents into the soul.
+   aggregate behavioral evidence. It reads what each question needs and records
+   what it has read, instead of embedding hundreds of changing documents into
+   the soul or crawling the whole tree.
 3. **Continuity:** a small product notebook on `/data` keeps approved direction,
    decisions, risks, research, and draft specs with provenance. This notebook
    is working memory, not a second authoritative roadmap.
@@ -31,10 +32,10 @@ connect private repositories, ingest documents, or install monitoring.
 ## Source map and freshness
 
 Start in `desmotech/taikan`. Discover the default branch and resolve it to a
-commit. Enumerate the documentation tree, handling pagination/truncation, and
-read sources at that revision so one brief does not accidentally mix revisions.
-For a new substantive question, compare the current head and refresh affected
-sources. Use the GitHub MCP or the image's `gh` CLI with the scoped token;
+commit, then read only the sources the current question needs, at that
+revision, so one brief does not accidentally mix revisions. For a new
+substantive question, compare the current head and refresh the sources it
+depends on. Use the GitHub MCP or the image's `gh` CLI with the scoped token;
 there is no preinstalled Taikan checkout in the agent image.
 
 | Topic | Initial source paths in `desmotech/taikan` |
@@ -52,8 +53,8 @@ there is no preinstalled Taikan checkout in the agent image.
 
 This table is a navigation starting point, not an exhaustive list. The local
 source inventory on 2026-09-22 contained 311 Markdown files and 46 feature
-folders. The agent must discover the actual current inventory and track
-discovered/read/stale/missing coverage. Index other formats too; record any
+folders. The agent does not read them all: it searches paths, opens what the
+question needs, and records what it read and at which revision. It records any
 format it cannot read instead of treating it as covered.
 
 For native behavior, inspect the separate `desmotech/taikan-mobile` repository's

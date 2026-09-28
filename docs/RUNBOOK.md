@@ -217,7 +217,17 @@ is thrown away on the next deploy and is not what Git says you run. Instead:
    change migrate makes into `config/eng.yaml` and push it.
 
 Railway SSH is the way to run any one-off `hermes` command against a live
-service: `railway ssh --service <bot> -- hermes <cmd>`.
+service. SSH lands as root with the real Anthropic key in its environment, while
+the gateway runs as the unprivileged `hermes` user. Run Hermes commands as that
+user and without the key, so files they write stay readable to the gateway:
+
+```sh
+railway ssh --service <bot> -- runuser -u hermes -- env -u ANTHROPIC_API_KEY hermes <cmd>
+```
+
+The short `railway ssh --service <bot> -- hermes <cmd>` form in this runbook
+also works; anything it writes as root is handed back to `hermes` on the next
+boot, so restart the service if the gateway must see it immediately.
 
 ## Cost per service, and stopping one
 

@@ -78,11 +78,20 @@ denied, what that blocks, and waits.
 ## What the guard still does
 
 `entrypoint.sh` starts `cost_guard.py` before writing Hermes's environment.
-The supervisor retains the real Anthropic key. Its child receives a randomly
-generated loopback `taikan-local-…` credential and the local endpoint, so an
-accidental SDK call cannot reach the provider unmetered. The guard:
+The supervisor stays root and retains the real Anthropic key. It runs Hermes
+(and every shell command the agent starts) as the unprivileged `hermes` user
+(uid 10001), which cannot read root's `/proc/<pid>/environ` or memory. Hermes
+receives a randomly generated loopback `taikan-local-…` credential and the
+local endpoint, so an SDK call cannot reach the provider unmetered. On every
+boot the supervisor gives `/data` to `hermes` (repairing files an operator
+wrote as root) except its own `/data/cost-guard/`, which stays root-only. The
+guard:
 
-- rejects alternate inference provider credentials;
+- rejects alternate inference provider credentials, including
+  `CLAUDE_CODE_OAUTH_TOKEN`;
+- removes stored inference credentials from `auth.json` at gateway start
+  (pool entries and provider logins that would reach a provider directly);
+  MCP OAuth tokens in `mcp-tokens/` are untouched;
 - admits only `claude-opus-5`, `claude-sonnet-5` and `claude-haiku-4-5`;
 - forces the standard service tier, refusing batch, fast and priority modes;
 - refuses provider-hosted paid server tools;
@@ -110,12 +119,13 @@ No prompts, completions or keys are written anywhere.
 
 ## Reading recorded spend
 
-The record is `$HERMES_HOME/cost-guard/usage.sqlite3`, table `calls`, with
-columns `id`, `day`, `model`, `usd_micro` and `usage`. Per-day totals:
+The record is `/data/cost-guard/usage.sqlite3` (root-only), table `calls`, with
+columns `id`, `day`, `model`, `usd_micro` and `usage`. Per-day totals, from a
+root shell such as `railway ssh`:
 
 ```sh
-sqlite3 $HERMES_HOME/cost-guard/usage.sqlite3 \
-  "SELECT day, round(sum(usd_micro)/1e6,2) FROM calls GROUP BY day"
+python3 -c "import sqlite3; [print(*r) for r in sqlite3.connect('/data/cost-guard/usage.sqlite3').execute(
+  'SELECT day, round(sum(usd_micro)/1e6,2) FROM calls GROUP BY day')]"
 ```
 
 Deleting this file loses history and nothing else; it does not unblock work,
@@ -130,10 +140,16 @@ Anthropic workspace spending limit before enabling the bot.** A rate limit is
 not a spending limit. Use a dedicated workspace and key for this fleet, not a
 shared key used by Claude Code or other apps.
 
-The same-container guard is not a security sandbox against a hostile root
-process: the agent still has shell access. It does not meter external paid
-MCP, search, infrastructure or other services. Railway compute and storage
-bill separately. Provider-side limits are the independent financial backstop.
+User separation keeps the key away from the agent's shell, but the agent
+still has shell access as `hermes` and holds its other integration tokens
+(GitHub, Linear, PostHog); it is not a sandbox against a container escape.
+The guard does not meter external paid MCP, search, infrastructure or other
+services. Railway compute and storage bill separately. Provider-side limits
+are the independent financial backstop.
+
+The agent cannot install system packages (`apt`) or into `/opt/venv`. It can
+install npm CLIs globally (prefix `/data/.npm-global`, on `PATH`) and create
+Python virtualenvs under `/data/workspace`.
 
 A task can still end at the 40-call checkpoint with work unfinished; the agent
 gives its useful findings and the next step, and Saar decides whether to

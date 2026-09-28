@@ -1,5 +1,6 @@
 """Validated fleet defaults and the supported Hermes runtime safety hooks."""
 
+import json
 import os
 from pathlib import Path
 import runpy
@@ -97,7 +98,45 @@ def install_hooks():
     print("[cost-guard] Automatic cron dispatch and background reviews disabled.", flush=True)
 
 
+GUARDED_SOURCE = "env:ANTHROPIC_API_KEY"
+
+
+def drop_stored_inference_credentials(home):
+    """Remove inference credentials persisted in auth.json.
+
+    The only permitted route is ANTHROPIC_API_KEY (the guard's loopback token),
+    whose pool entry Hermes refreshes from the environment on every load.
+    Every other stored pool entry or provider login (from older deployments or
+    manual `hermes auth` use) would reach a provider directly. MCP OAuth tokens
+    live in mcp-tokens/ and are untouched.
+    """
+    path = Path(home) / "auth.json"
+    try:
+        store = json.loads(path.read_text())
+    except (FileNotFoundError, ValueError):
+        return  # Hermes treats an unreadable store as empty.
+    if not isinstance(store, dict):
+        return
+    pool = store.get("credential_pool") if isinstance(store.get("credential_pool"), dict) else {}
+    entries = [e for v in pool.values() for e in (v if isinstance(v, list) else [v])]
+    # Only an entry written under the guard (loopback URL) is safe to keep; a
+    # pre-guard env entry would still hold the real key and provider URL.
+    kept = [e for e in pool.get("anthropic") or [] if isinstance(e, dict) and e.get("source") == GUARDED_SOURCE
+            and str(e.get("base_url", "")).startswith("http://127.0.0.1:")]
+    removed = len(entries) - len(kept) + len(store.get("providers") or {})
+    if not removed:
+        return
+    store["credential_pool"] = {"anthropic": kept} if kept else {}
+    store["providers"] = {}
+    temp = path.with_name(".auth.json.tmp")
+    temp.write_text(json.dumps(store, indent=2))
+    temp.chmod(0o600)
+    temp.replace(path)
+    print(f"[cost-guard] Removed {removed} stored inference credential(s) from auth.json.", flush=True)
+
+
 def gateway():
+    drop_stored_inference_credentials(os.environ["HERMES_HOME"])
     install_hooks()
     sys.argv = ["hermes", "gateway"]
     runpy.run_path(shutil.which("hermes"), run_name="__main__")

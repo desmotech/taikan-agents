@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from entrypoint_driver import EntrypointDriver
@@ -59,6 +60,28 @@ class EntrypointTests(unittest.TestCase):
         for path, content in persisted.items():
             self.assertEqual(self.driver.read_state(path), content)
         self.assertEqual(self.driver.read_state("SOUL.md"), self.driver.source_asset("souls/eng.md"))
+
+    def test_stored_provider_credentials_cannot_bypass_the_guard(self):
+        guarded = {"source": "env:ANTHROPIC_API_KEY", "access_token": "taikan-local-old",
+                   "base_url": "http://127.0.0.1:40000"}
+        self.driver.given_state("auth.json", json.dumps({
+            "version": 1,
+            "providers": {"nous": {"access_token": "stored-oauth"}},
+            "credential_pool": {
+                "anthropic": [guarded,
+                              {"source": "manual", "access_token": "sk-ant-stored", "base_url": "https://api.anthropic.com"},
+                              {"source": "env:ANTHROPIC_API_KEY", "access_token": "sk-ant-pre-guard",
+                               "base_url": "https://api.anthropic.com"}],
+                "openrouter": [{"source": "manual", "access_token": "sk-or-stored"}],
+            },
+        }))
+        self.driver.given_state("mcp-tokens/sentry.json", "existing Sentry OAuth")
+        result = self.driver.run()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        store = json.loads(self.driver.read_state("auth.json"))
+        self.assertEqual(store["credential_pool"], {"anthropic": [guarded]})
+        self.assertEqual(store["providers"], {})
+        self.assertEqual(self.driver.read_state("mcp-tokens/sentry.json"), "existing Sentry OAuth")
 
     def test_railway_without_data_volume_refuses_to_start(self):
         for mount in (None, "/wrong-path"):

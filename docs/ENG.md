@@ -102,9 +102,9 @@ service's Hermes profile, complete both OAuth logins:
 
 ```sh
 railway ssh --service eng
-# Run inside the interactive remote shell:
-hermes mcp login railway
-hermes mcp login sentry
+# Run inside the interactive remote shell, as the gateway's user:
+runuser -u hermes -- env -u ANTHROPIC_API_KEY hermes mcp login railway
+runuser -u hermes -- env -u ANTHROPIC_API_KEY hermes mcp login sentry
 ```
 
 The owner opens each authorization URL in a local browser. The pinned Hermes

@@ -177,6 +177,9 @@ What the findings recorded below look like after this decision:
 | A 40,000-token input ceiling could be consumed by MCP tool schemas plus history before any real work | The 120,000-token context removes that risk |
 | A denied approval had no explicit rule against reaching the same result another way | The eng soul now states that a denial ends that approach: no local harness, direct API call or different tool; report what was denied and wait |
 | Images and PDFs were refused, which broke screenshots sent from a phone | Images and documents are accepted and accounted like other input |
+| The container ran as root, so the agent could read the real key from `/proc/<pid>/environ` | Hermes and its shell run as the unprivileged `hermes` user; the supervisor and PID 1 environments are unreadable (verified in a full image boot) |
+| A pre-guard credential pool entry or provider login in `auth.json` could reach the provider directly | Stored inference credentials are removed at gateway start; `CLAUDE_CODE_OAUTH_TOKEN` is refused like other alternate keys |
+| The product soul required whole-tree document reads while forbidding exhaustive crawls | Product reads only what the current question needs and records what it read |
 
 Still open: no paid calibration. Opus at high reasoning effort with 16,384
 output tokens has not been measured against the real API, and no provider
@@ -206,12 +209,14 @@ cause and are not part of this change.
 | Repeated failure/no progress | Hard stops retained |
 | Images and documents | Accepted, accounted like any other input |
 
-The supervisor retains the real Anthropic key; Hermes receives a loopback
-`taikan-local-…` credential. The guard admits only the three reviewed models,
-forces the standard service tier, refuses alternate inference credentials and
-provider-hosted paid server tools, clamps `max_tokens` to 16,384, and records
-each completed call's usage and USD cost in
-`$HERMES_HOME/cost-guard/usage.sqlite3`. Opus 5 standard rates were checked at
+The supervisor stays root and retains the real Anthropic key; Hermes runs as
+the unprivileged `hermes` user with a loopback `taikan-local-…` credential and
+cannot read the supervisor's environment. Stored inference credentials in
+`auth.json` are removed at gateway start. The guard admits only the three
+reviewed models, forces the standard service tier, refuses alternate inference
+credentials and provider-hosted paid server tools, clamps `max_tokens` to
+16,384, and records each completed call's usage and USD cost in the root-only
+`/data/cost-guard/usage.sqlite3`. Opus 5 standard rates were checked at
 $5/M input and $25/M output; cache writes bill at 2x input and reads at 0.1x.
 See [COST-CONTROLS.md](COST-CONTROLS.md).
 
@@ -340,10 +345,13 @@ No Seer run, account change, integration or paid action happened here.
   pinned Hermes image with networking disabled and current repo code mounted
   read-only. The real native Anthropic adapter passed streaming/non-streaming
   fake-provider requests. That run exercised the dollar-cap mechanism that no
-  longer exists. The productive-eng revision replaces those tests: 25 offline
+  longer exists. The productive-eng revision replaces those tests: 26 offline
   tests pass, and `verify_runtime.py` passes in the pinned image with
   `--network none`, including real main/side-call routing (side-calls on
   Haiku through the guard) and a relayed 529 followed by a successful call.
+  A full boot of the image on a root-owned volume confirmed Hermes runs as
+  `hermes`, cannot read the supervisor's or PID 1's environment, stored
+  inference credentials are removed, and a restart comes back up.
 - Asset validation and whitespace checks passed. No paid model call, live
   Slack calibration, provider-limit change or deployment was performed.
 - CI on the pushed revision is the authority for its new image build; verify
