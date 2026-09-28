@@ -12,10 +12,17 @@ safe default I used. None is a silent guess.
 1. **Paid calibration after cost controls.** The real Hermes config loader,
    automatic-review/scheduler hooks, and native Anthropic SDK (streaming and
    non-streaming) have passed offline checks against fake provider responses.
-   The proxy permits only `claude-sonnet-5` and `claude-haiku-4-5`. No provider
-   spending limit has been verified and no paid calibration task has been run.
-   Reconcile the first bounded Slack task against actual provider accounting
-   before unattended use. Alternate-provider fallbacks are deliberately blocked.
+   The guard permits only `claude-opus-5`, `claude-sonnet-5` and
+   `claude-haiku-4-5`. No provider spending limit — now the only cap on spend
+   — has been verified and no paid calibration task has been run. Reconcile
+   the first bounded Slack task against actual provider accounting before
+   unattended use. Alternate-provider fallbacks are deliberately blocked.
+
+   **Opus at high reasoning effort with 16,384 output tokens is uncalibrated
+   against the real API.** Offline tests use fake responses, so the actual
+   cost, latency and thinking-token share of a 40-call eng turn, and whether
+   the 1800-second wrap-up notice arrives before the call checkpoint, are
+   unknown. Measure them on the first bounded task.
 
 2. **Root gateway.** The official Hermes Docker page says the gateway refuses to
    run as root unless `HERMES_ALLOW_ROOT_GATEWAY=1`. The template image runs as

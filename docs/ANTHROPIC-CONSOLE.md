@@ -4,9 +4,10 @@ What to configure at platform.claude.com for the agent fleet, and why. Workspace
 `taikan` was created 2026-08-29 and the first API key minted then.
 
 Eng is stopped following the 2026-09-22 credit-exhaustion incident. Read
-[COST-CONTROLS.md](COST-CONTROLS.md). The new local proxy has conservative
-$2/day and $10 total accounting limits, but an independent provider spending
-limit must be verified before reactivation.
+[COST-CONTROLS.md](COST-CONTROLS.md). There are no local dollar limits: the
+workspace spending limit configured here, on a key dedicated to this fleet,
+is the only cap on what an agent can spend. It must be set and verified
+before reactivation.
 
 ## 1. Verify an independent provider spending limit
 
@@ -60,10 +61,12 @@ rotate the Railway variable second - in that order.
 
 | Model              | Id                 | Input $/MTok | Output $/MTok | Used by            |
 |--------------------|--------------------|--------------|---------------|--------------------|
-| Claude Sonnet 5    | `claude-sonnet-5`  | $2           | $10           | eng, product, analyst, marketing, scout |
-| Claude Haiku 4.5   | `claude-haiku-4-5` | $1           | $5            | ops, release, auxiliary work |
+| Claude Opus 5      | `claude-opus-5`    | $5           | $25           | eng                |
+| Claude Sonnet 5    | `claude-sonnet-5`  | $2           | $10           | product, analyst, marketing, scout |
+| Claude Haiku 4.5   | `claude-haiku-4-5` | $1           | $5            | ops, release, eng auxiliary side-calls, all compression |
 
-The gate admits only these reviewed model IDs. Real Hermes client routing is
+Cache writes bill at 2x the input rate and cache reads at 0.1x. The guard
+admits only these reviewed model IDs. Real Hermes client routing is
 checked offline in CI; a paid task and provider-billing reconciliation remain
 activation checks. See [pricing](https://platform.claude.com/docs/en/about-claude/pricing).
 

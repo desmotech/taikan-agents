@@ -9,30 +9,52 @@ import sys
 import yaml
 
 
+# eng's per-message limits are the fleet maxima; other agents may be lower.
+MAXIMA = {
+    ("agent", "max_turns"): 40,
+    ("agent", "run_budget_seconds"): 1800,
+    ("model", "context_length"): 120_000,
+    ("model", "max_tokens"): 16_384,
+    ("compression", "threshold_tokens"): 80_000,
+}
+REQUIRED = {
+    ("model", "provider"): "anthropic",
+    ("compression", "enabled"): True,
+    ("auxiliary", "background_review", "enabled"): False,
+    ("curator", "enabled"): False,
+    ("memory", "nudge_interval"): 0,
+    ("tool_loop_guardrails", "hard_stop_enabled"): True,
+}
+# Side-calls Hermes otherwise routes to the main model; on Opus they must use Haiku.
+OPUS_AUXILIARY_TASKS = ("compression", "title_generation", "memory_query_rewrite", "approval",
+                        "mcp", "goal_judge", "vision", "skills_hub", "profile_describer")
+
+
+def lookup(config, path):
+    for part in path:
+        config = config.get(part) if isinstance(config, dict) else None
+    return config
+
+
 def errors(config):
-    required = {
-        ("agent", "max_turns"): 12,
-        ("agent", "run_budget_seconds"): 180,
-        ("model", "provider"): "anthropic",
-        ("model", "context_length"): 40000,
-        ("model", "max_tokens"): 4096,
-        ("compression", "enabled"): True,
-        ("compression", "threshold_tokens"): 24000,
-        ("auxiliary", "background_review", "enabled"): False,
-        ("curator", "enabled"): False,
-        ("memory", "nudge_interval"): 0,
-        ("tool_loop_guardrails", "hard_stop_enabled"): True,
-    }
     problems = []
-    for path, expected in required.items():
-        actual = config
-        for part in path:
-            actual = actual.get(part) if isinstance(actual, dict) else None
+    for path, expected in REQUIRED.items():
+        actual = lookup(config, path)
         if actual != expected or type(actual) is not type(expected):
             problems.append(".".join(path) + f" must be {expected!r}")
-    if config.get("model", {}).get("default") not in ("claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"):
+    for path, maximum in MAXIMA.items():
+        actual = lookup(config, path)
+        if type(actual) is not int or not 0 < actual <= maximum:
+            problems.append(".".join(path) + f" must be a positive integer <= {maximum}")
+    model = lookup(config, ("model", "default"))
+    if model not in ("claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"):
         problems.append("Only cost-reviewed Opus 5, Sonnet 5 and Haiku 4.5 models are permitted")
-    if not {"delegation", "cronjob"}.issubset(config.get("agent", {}).get("disabled_toolsets", [])):
+    if model == "claude-opus-5":
+        for task in OPUS_AUXILIARY_TASKS:
+            aux = lookup(config, ("auxiliary", task)) or {}
+            if aux.get("provider") != "anthropic" or aux.get("model") != "claude-haiku-4-5":
+                problems.append(f"auxiliary.{task} must use provider anthropic, model claude-haiku-4-5")
+    if not {"delegation", "cronjob"}.issubset(lookup(config, ("agent", "disabled_toolsets")) or []):
         problems.append("Delegation and cronjob toolsets must be disabled")
     return problems
 

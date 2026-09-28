@@ -155,6 +155,10 @@ Manage: `railway ssh --service <bot> -- hermes cron list|pause <id>|resume <id>|
   and follow [ENG.md](ENG.md). Inspect only the needed setting in the dashboard;
   `railway variable list` can expose every secret. Inspect pending pairing
   requests with `hermes pairing list`; approve only the verified owner.
+- Eng stopped mid-task with a summary instead of a result: it reached the
+  40-call checkpoint for that Slack message. Nothing failed and nothing was
+  disabled — read the summary and reply `continue` in the same thread. Other
+  agents reach their own checkpoint at 12 calls.
 
 ### Startup warnings and deployment notifications
 
@@ -217,10 +221,18 @@ service: `railway ssh --service <bot> -- hermes <cmd>`.
 
 ## Cost per service, and stopping one
 
-Model accounting is bounded by the local $2/day and $10 total gate described
-in [COST-CONTROLS.md](COST-CONTROLS.md). These are conservative accounting
-limits; verify an independent provider workspace spending limit before
-reactivation. Railway compute/storage and other paid services are separate.
+There is no local dollar limit. The Anthropic workspace spending limit on the
+fleet's dedicated key is the only cap; verify it before reactivation. The
+local guard records what each completed call cost, for visibility only — see
+[COST-CONTROLS.md](COST-CONTROLS.md#reading-recorded-spend) for the sqlite
+record and the per-day query. Each call also logs one line:
+
+```
+[cost-guard] usd=<this call> today_usd=<UTC day total> model=<model id>
+```
+
+Reconcile those totals against the Console's own usage rather than trusting
+either alone. Railway compute/storage and other paid services are separate.
 
 To stop eng in Railway: **taikan-agents → eng → Deployments → active
  deployment → ⋮ → Remove**. Wait for Removed. Keep the service and its volume.
@@ -229,5 +241,6 @@ Revoke the agent's dedicated provider key if spend is still at risk. The new
 entrypoint also defaults off unless `TAIKAN_AGENT_ENABLED=true`.
 
 Volume storage continues to bill while the process is stopped. Do not delete
-it: it holds evidence, memory, OAuth state and the persistent spending ledger.
-See [Railway deployment actions](https://docs.railway.com/deployments/deployment-actions).
+it: it holds evidence, memory, OAuth state and the recorded usage history.
+Deleting the usage record loses history and nothing else; it never blocked a
+call. See [Railway deployment actions](https://docs.railway.com/deployments/deployment-actions).

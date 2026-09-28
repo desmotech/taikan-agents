@@ -8,12 +8,12 @@ timezone: "Asia/Jerusalem"
 terminal:
   backend: local
   cwd: /data/workspace
-  timeout: 180
+  timeout: 600
 
 compression:
   enabled: true
   threshold: 0.60
-  threshold_tokens: 24000
+  threshold_tokens: 80000
   target_ratio: 0.20
   protect_last_n: 4
   max_attempts: 1
@@ -28,8 +28,8 @@ cron:
 
 model:
   provider: anthropic
-  context_length: 40000
-  max_tokens: 4096
+  context_length: 120000
+  max_tokens: 16384
   default: claude-opus-5
 
 # Slack uses SLACK_BOT_TOKEN + SLACK_APP_TOKEN from the environment, with
@@ -66,20 +66,44 @@ mcp_servers:
     enabled: true
     timeout: 120
 
-# Enforced fleet cost policy; see docs/COST-CONTROLS.md.
+# Enforced fleet policy; eng's per-message limits are the fleet maxima.
+# See docs/COST-CONTROLS.md. 40 calls per message, then Hermes summarizes and
+# Saar says "continue". run_budget_seconds is a soft wrap-up notice at 80%.
 agent:
-  max_turns: 12
-  run_budget_seconds: 180
-  reasoning_effort: low
+  max_turns: 40
+  run_budget_seconds: 1800
+  reasoning_effort: high
   disabled_toolsets: [delegation, cronjob]
 
+# Side-calls otherwise inherit Opus; keep them on Haiku.
 auxiliary:
   background_review:
     enabled: false
   compression:
     provider: anthropic
     model: claude-haiku-4-5
-  session_search:
+  title_generation:
+    provider: anthropic
+    model: claude-haiku-4-5
+  memory_query_rewrite:
+    provider: anthropic
+    model: claude-haiku-4-5
+  approval:
+    provider: anthropic
+    model: claude-haiku-4-5
+  mcp:
+    provider: anthropic
+    model: claude-haiku-4-5
+  goal_judge:
+    provider: anthropic
+    model: claude-haiku-4-5
+  vision:
+    provider: anthropic
+    model: claude-haiku-4-5
+  skills_hub:
+    provider: anthropic
+    model: claude-haiku-4-5
+  profile_describer:
     provider: anthropic
     model: claude-haiku-4-5
 
@@ -89,10 +113,10 @@ curator:
 mcp:
   auto_reload_on_config_change: false
 
-file_read_max_chars: 12000
+file_read_max_chars: 40000
 tool_output:
-  max_bytes: 12000
-  max_lines: 200
+  max_bytes: 40000
+  max_lines: 800
   max_line_length: 1000
 
 tool_loop_guardrails:

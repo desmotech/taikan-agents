@@ -6,9 +6,9 @@
 > older scheduling instructions below do not enable them.
 
 
-Start with [the September 22 discussion record](ENG-DISCUSSION-HANDOFF.md)
-for the cost incident, current Opus/request-only decision, unapproved limit
-changes, Seer discussion and continuation checklist. It supersedes older
+Start with [the eng discussion record](ENG-DISCUSSION-HANDOFF.md) for the cost
+incident, the Opus/request-only decision, the 2026-09-28 productive-eng limits,
+the Seer discussion and the continuation checklist. It supersedes older
 autonomous-monitoring language below.
 
 Current direction: every agent communicates with Saar through Slack. Start
@@ -68,8 +68,9 @@ local validation step or a prerequisite for GitHub deployments.
 
 Prior deployment approval does not authorize restarting after the cost
 incident. Follow [COST-CONTROLS.md](COST-CONTROLS.md#verification-before-reactivation)
-first: reviewed code, offline tests, independent provider spending limit,
-new dedicated key, then Saar's explicit enable/deploy instruction.
+first: reviewed code, offline tests, a verified Anthropic workspace spending
+limit — now the only cap on spend — a new dedicated key, then Saar's explicit
+enable/deploy instruction.
 
 Use one new Slack thread and one bounded read-only task to calibrate usage.
 Inspect account/project access and owner allowlisting. Automatic cron dispatch

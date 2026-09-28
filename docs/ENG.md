@@ -18,6 +18,9 @@ contract; [the config](../config/eng.yaml) declares its integrations.
 - Slack credential prompts for every agent. The entrypoint requires Slack
   tokens and an explicit owner allowlist, and strips legacy platform variables.
 - Opus 5 for requested engineering work; no automatic digest or monitoring.
+- 40 model calls per Slack message, ending in a summary checkpoint Saar
+  resumes with `continue`. No local dollar cap: the Anthropic workspace
+  spending limit is the only one. See [cost controls](COST-CONTROLS.md).
 - CI validation and image build checks before Railway GitHub autodeploys.
   Follow [the first-deployment setup](RUNBOOK.md#github-ci-and-railway-deployment).
 
@@ -35,7 +38,9 @@ It proposes next steps and waits for Saar to choose; Linear writes need an
 explicit request. Advice does not authorize implementation. It must not start
 monitoring, preliminary audits, skill creation, or work after task completion.
 It can explain architecture and recommend operational actions from a phone
-conversation. It continues safe work while an action is awaiting approval.
+conversation. It keeps investigating read-only while an action awaits
+approval. A denial, unlike a pending approval, ends that approach: it must not
+route around one with a local harness, a direct API call or another tool.
 
 Production mutations require explicit approval of a concrete action and target.
 Commits, pushes, PR creation, merges, and releases follow the owner's request
@@ -146,9 +151,11 @@ Run these as separate bounded tasks; no exhaustive single-turn audit.
    validation plan, not just error triage.
 7. Instruct it to prepare a small local fix. Confirm checkout isolation,
    target-repo instructions, test evidence, and no unauthorized commit/push.
-8. Verify the persistent cost ledger against Anthropic usage after the small
-   calibration task. Confirm automatic scheduled dispatch remains disabled.
-   Inspect existing jobs without running them.
+8. Compare the recorded per-call usage with Anthropic's own reporting after
+   the small calibration task; it is a visibility record, not a cap. Confirm
+   the 40-call checkpoint produces a usable summary and that `continue`
+   resumes. Confirm automatic scheduled dispatch remains disabled, and
+   inspect existing jobs without running them.
 
 Push alerts remain a separate, undeployed design in [WEBHOOKS.md](WEBHOOKS.md).
 Retain independent provider alerts: an agent outage must not silence incident

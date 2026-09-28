@@ -27,10 +27,10 @@ def main():
         from hermes_cli.config import load_config
         cfg = load_config()
         assert cfg["model"]["default"] == "claude-opus-5"
-        assert cfg["agent"]["max_turns"] == 12
-        assert cfg["model"]["max_tokens"] == 4096
-        assert cfg["model"]["context_length"] == 40000
-        assert cfg["compression"]["threshold_tokens"] == 24000
+        assert cfg["agent"]["max_turns"] == 40
+        assert cfg["model"]["max_tokens"] == 16384
+        assert cfg["model"]["context_length"] == 120000
+        assert cfg["compression"]["threshold_tokens"] == 80000
         assert cfg["auxiliary"]["background_review"]["enabled"] is False
         assert cfg["curator"]["enabled"] is False
 
@@ -43,36 +43,51 @@ def main():
         # A stopped scheduler returns without ever reading/running stored jobs.
         resolve_cron_scheduler().start(stopped)
 
+        # Production routing: main loop and every side-call reach the loopback guard;
+        # side-calls run on Haiku instead of inheriting Opus.
+        from hermes_cli.runtime_provider import resolve_runtime_provider
+        from agent.auxiliary_client import get_text_auxiliary_client
+        from runtime_policy import OPUS_AUXILIARY_TASKS
+        runtime = resolve_runtime_provider(requested="anthropic")
+        assert runtime["base_url"].startswith("http://127.0.0.1:"), runtime["base_url"]
+        for task in OPUS_AUXILIARY_TASKS:
+            client, model = get_text_auxiliary_client(task, main_runtime=runtime)
+            assert model == "claude-haiku-4-5", (task, model)
+            assert str(client.base_url).startswith("http://127.0.0.1:"), (task, client.base_url)
+
         from agent.anthropic_adapter import build_anthropic_client
+        import anthropic
         driver = CostGuardDriver()
         try:
             base = f"http://127.0.0.1:{driver.server.server_port}"
             client = build_anthropic_client(driver.server.token, base, timeout=5)
-            result = client.messages.create(model="claude-opus-5", max_tokens=4096,
+            result = client.messages.create(model="claude-opus-5", max_tokens=16384,
                                             messages=[{"role": "user", "content": "hello"}])
             assert result.content[0].text == "test"
-            assert len(driver.generation_calls()) == 1
-            assert driver.rows()[0][2:] == (7500, 1)
-            with client.messages.stream(model="claude-opus-5", max_tokens=4096,
+            assert driver.rows() == [("claude-opus-5", 7500)]
+            with client.messages.stream(model="claude-opus-5", max_tokens=16384,
                                         messages=[{"role": "user", "content": "hello"}]) as stream:
                 assert "".join(stream.text_stream) == "test"
                 assert stream.get_final_message().usage.output_tokens == 100
-            assert len(driver.generation_calls()) == 2
-            assert sum(row[2] for row in driver.rows()) == 15000
-            driver.spend(1_985_000)
-            import anthropic
+            assert sum(row[1] for row in driver.rows()) == 15000
+            # The real SDK must see provider overload as retryable, not a terminal 400.
+            driver.upstream.status = 529
             try:
-                client.messages.create(model="claude-opus-5", max_tokens=4096,
-                                       messages=[{"role": "user", "content": "over budget"}])
-            except anthropic.BadRequestError:
-                pass
+                client.with_options(max_retries=0).messages.create(
+                    model="claude-opus-5", max_tokens=16384,
+                    messages=[{"role": "user", "content": "overloaded"}])
+            except anthropic.APIStatusError as exc:
+                assert exc.status_code == 529 and not isinstance(exc, anthropic.BadRequestError)
             else:
-                raise AssertionError("Real SDK bypassed the budget denial")
-            assert len(driver.generation_calls()) == 2
+                raise AssertionError("Provider overload was not relayed")
+            driver.upstream.status = 200
+            client.messages.create(model="claude-opus-5", max_tokens=16384,
+                                   messages=[{"role": "user", "content": "recovered"}])
+            assert len(driver.rows()) == 3
             client.close()
         finally:
             driver.close()
-    print("Real Hermes config, runtime hooks, native Anthropic adapter and budget denial verified offline.")
+    print("Real Hermes config, runtime hooks, native Anthropic adapter and error relay verified offline.")
 
 
 if __name__ == "__main__":
