@@ -8,13 +8,18 @@ timezone: "Asia/Jerusalem"
 terminal:
   backend: local
   cwd: /data/workspace
-  timeout: 180
+  timeout: 600
 
 compression:
   enabled: true
-  threshold: 0.85
+  threshold: 0.60
+  threshold_tokens: 80000
+  target_ratio: 0.20
+  protect_last_n: 4
+  max_attempts: 1
 
 memory:
+  nudge_interval: 0
   memory_enabled: true
   user_profile_enabled: true
 
@@ -23,17 +28,18 @@ cron:
 
 model:
   provider: anthropic
+  context_length: 120000
+  max_tokens: 16384
   default: claude-opus-5
 
 # Slack uses SLACK_BOT_TOKEN + SLACK_APP_TOKEN from the environment, with
 # SLACK_ALLOWED_USERS and SLACK_HOME_CHANNEL. See docs/ENG.md for activation.
 # MCP configuration is not proof of a live connection. Test each integration.
-# Railway OAuth credentials persist on the volume; no Railway CLI is required.
+# Sentry and Railway OAuth credentials persist on the volume.
 mcp_servers:
   sentry:
     url: "https://mcp.sentry.dev/mcp"
-    headers:
-      Authorization: "Bearer ${SENTRY_AUTH_TOKEN}"
+    auth: oauth
     enabled: true
     timeout: 120
   linear:
@@ -59,3 +65,66 @@ mcp_servers:
     auth: oauth
     enabled: true
     timeout: 120
+
+# Enforced fleet policy; eng's per-message limits are the fleet maxima.
+# See docs/COST-CONTROLS.md. 40 calls per message, then Hermes summarizes and
+# Saar says "continue". run_budget_seconds is a soft wrap-up notice at 80%.
+agent:
+  max_turns: 40
+  run_budget_seconds: 1800
+  reasoning_effort: high
+  disabled_toolsets: [delegation, cronjob]
+
+# Side-calls otherwise inherit Opus; keep them on Haiku.
+auxiliary:
+  background_review:
+    enabled: false
+  compression:
+    provider: anthropic
+    model: claude-haiku-4-5
+  title_generation:
+    provider: anthropic
+    model: claude-haiku-4-5
+  memory_query_rewrite:
+    provider: anthropic
+    model: claude-haiku-4-5
+  approval:
+    provider: anthropic
+    model: claude-haiku-4-5
+  mcp:
+    provider: anthropic
+    model: claude-haiku-4-5
+  goal_judge:
+    provider: anthropic
+    model: claude-haiku-4-5
+  vision:
+    provider: anthropic
+    model: claude-haiku-4-5
+  skills_hub:
+    provider: anthropic
+    model: claude-haiku-4-5
+  profile_describer:
+    provider: anthropic
+    model: claude-haiku-4-5
+
+curator:
+  enabled: false
+
+mcp:
+  auto_reload_on_config_change: false
+
+file_read_max_chars: 40000
+tool_output:
+  max_bytes: 40000
+  max_lines: 800
+  max_line_length: 1000
+
+tool_loop_guardrails:
+  hard_stop_enabled: true
+  hard_stop_after:
+    exact_failure: 2
+    same_tool_failure: 3
+    idempotent_no_progress: 2
+  loop_caps:
+    max_web_searches: 4
+    max_subagents: 1

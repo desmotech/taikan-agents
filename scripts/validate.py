@@ -7,6 +7,8 @@ from pathlib import Path
 
 import yaml
 
+from runtime_policy import errors as cost_errors
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -31,6 +33,7 @@ def main():
             continue
         if config.get("timezone") != "Asia/Jerusalem":
             errors.append(f"{name}: missing fleet timezone")
+        errors.extend(f"{name}: {error}" for error in cost_errors(config))
         model = config.get("model", {})
         if not model.get("provider") or not model.get("default"):
             errors.append(f"{name}: model provider and default are required")
@@ -51,6 +54,8 @@ def main():
         errors.append("Railway must require the persistent /data volume")
 
     dockerfile = (ROOT / "Dockerfile").read_text()
+    if 'rev-parse HEAD)" = "5fc308a70719a83cccdbba4c0e39c23f5a8239d5"' not in dockerfile:
+        errors.append("Dockerfile must verify the cost-reviewed Hermes commit")
     match = re.search(r"^ARG HERMES_GIT_REF=(\S+)$", dockerfile, re.MULTILINE)
     if not match or not re.fullmatch(r"v\d{4}\.\d+\.\d+|[a-f0-9]{40}", match[1]):
         errors.append("Dockerfile must supply a pinned Hermes ref for CI and Railway")

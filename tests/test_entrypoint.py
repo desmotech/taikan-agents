@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from entrypoint_driver import EntrypointDriver
@@ -8,12 +9,20 @@ class EntrypointTests(unittest.TestCase):
         self.driver = EntrypointDriver()
         self.addCleanup(self.driver.close)
 
+    def test_agent_stays_off_until_owner_enables_it(self):
+        result = self.driver.run(TAIKAN_AGENT_ENABLED=None)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Agent disabled", result.stdout)
+        self.assertFalse(self.driver.launched())
+        self.assertFalse(self.driver.state_exists(".env"))
+
     def test_slack_starts_and_loads_git_assets(self):
         result = self.driver.run()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(self.driver.launched())
         self.assertEqual(self.driver.read_state("SOUL.md"), self.driver.source_asset("souls/eng.md"))
-        self.assertEqual(self.driver.read_state("config.yaml"), self.driver.source_asset("config/eng.yaml"))
+        self.assertTrue(self.driver.config_matches_asset())
+        self.assertNotIn("fake-provider", self.driver.read_state(".env"))
         for secret in ("fake-provider", "fake-slack-bot", "fake-slack-app"):
             self.assertNotIn(secret, result.stdout + result.stderr)
 
@@ -38,7 +47,8 @@ class EntrypointTests(unittest.TestCase):
             "cron/jobs.json": "existing schedules",
             "state.db": "existing state",
             "auth.json": "existing auth",
-            "mcp-tokens/railway.json": "existing OAuth",
+            "mcp-tokens/railway.json": "existing Railway OAuth",
+            "mcp-tokens/sentry.json": "existing Sentry OAuth",
             ".initialized": "original initialization",
         }
         for path, content in persisted.items():
@@ -50,6 +60,48 @@ class EntrypointTests(unittest.TestCase):
         for path, content in persisted.items():
             self.assertEqual(self.driver.read_state(path), content)
         self.assertEqual(self.driver.read_state("SOUL.md"), self.driver.source_asset("souls/eng.md"))
+
+    def test_stored_provider_credentials_cannot_bypass_the_guard(self):
+        guarded = {"source": "env:ANTHROPIC_API_KEY", "access_token": "taikan-local-old",
+                   "base_url": "http://127.0.0.1:40000"}
+        self.driver.given_state("auth.json", json.dumps({
+            "version": 1,
+            "providers": {"nous": {"access_token": "stored-oauth"}},
+            "credential_pool": {
+                "anthropic": [guarded,
+                              {"source": "manual", "access_token": "sk-ant-stored", "base_url": "https://api.anthropic.com"},
+                              {"source": "env:ANTHROPIC_API_KEY", "access_token": "sk-ant-pre-guard",
+                               "base_url": "https://api.anthropic.com"}],
+                "openrouter": [{"source": "manual", "access_token": "sk-or-stored"}],
+            },
+        }))
+        self.driver.given_state("mcp-tokens/sentry.json", "existing Sentry OAuth")
+        result = self.driver.run()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        store = json.loads(self.driver.read_state("auth.json"))
+        self.assertEqual(store["credential_pool"], {"anthropic": [guarded]})
+        self.assertEqual(store["providers"], {})
+        self.assertEqual(self.driver.read_state("mcp-tokens/sentry.json"), "existing Sentry OAuth")
+
+    def test_railway_without_data_volume_refuses_to_start(self):
+        for mount in (None, "/wrong-path"):
+            with self.subTest(mount=mount):
+                result = self.driver.run(
+                    RAILWAY_ENVIRONMENT_ID="test-environment",
+                    RAILWAY_VOLUME_MOUNT_PATH=mount,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("persistent Railway volume at /data", result.stderr)
+                self.assertFalse(self.driver.launched())
+                self.assertFalse(self.driver.state_exists(".initialized"))
+
+    def test_railway_with_data_volume_starts(self):
+        result = self.driver.run(
+            RAILWAY_ENVIRONMENT_ID="test-environment",
+            RAILWAY_VOLUME_MOUNT_PATH="/data",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(self.driver.launched())
 
     def test_incomplete_slack_setup_is_rejected_without_fallback(self):
         cases = [
