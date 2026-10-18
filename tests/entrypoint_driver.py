@@ -20,6 +20,8 @@ class EntrypointDriver:
         self.state.mkdir()
         self.bin = self.root / "bin"
         self.bin.mkdir()
+        self.home = self.root / "home"
+        self.home.mkdir()
         stub = self.bin / "hermes"
         stub.write_text(
             'import os\nfrom pathlib import Path\n'
@@ -42,6 +44,7 @@ class EntrypointDriver:
             "BOT": "eng",
             "BOT_ASSETS_DIR": str(ROOT),
             "HERMES_HOME": str(self.state),
+            "HOME": str(self.home),
             "TERMINAL_CWD": str(self.root / "workspace"),
             "SLACK_BOT_TOKEN": "fake-slack-bot",
             "SLACK_APP_TOKEN": "fake-slack-app",

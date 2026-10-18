@@ -239,6 +239,19 @@ if [[ "$BOT" == "release" ]]; then
   append_if_set TAIKAN_RELEASE_API_URL
   append_if_set TAIKAN_RELEASE_ASSISTANT_TOKEN
 fi
+# Hermes strips GITHUB_TOKEN/GH_TOKEN from terminal subprocesses, so gh and git
+# would run unauthenticated. Store the token where gh reads it and route git's
+# GitHub HTTPS auth through gh. Removing the variable revokes the stored copy.
+GH_HOSTS_FILE="${HOME}/.config/gh/hosts.yml"
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  mkdir -p "$(dirname "$GH_HOSTS_FILE")"
+  (umask 077 && printf 'github.com:\n    oauth_token: %s\n    git_protocol: https\n' "$GITHUB_TOKEN" > "$GH_HOSTS_FILE")
+  git config --global --replace-all credential.https://github.com.helper '!gh auth git-credential'
+  echo "[bootstrap] GitHub credentials configured for gh and git."
+else
+  rm -f "$GH_HOSTS_FILE"
+fi
+
 BOT_SOUL="${BOT_ASSETS_DIR}/souls/${BOT}.md"
 BOT_CONFIG="${BOT_ASSETS_DIR}/config/${BOT}.yaml"
 if [[ ! -f "$BOT_SOUL" ]]; then

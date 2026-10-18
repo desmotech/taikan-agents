@@ -1,4 +1,6 @@
 import json
+import stat
+import subprocess
 import unittest
 
 from entrypoint_driver import EntrypointDriver
@@ -141,3 +143,22 @@ class EntrypointTests(unittest.TestCase):
         self.assertIn("release bot refuses unexpected privileged variable GITHUB_TOKEN", result.stderr)
         self.assertFalse(self.driver.launched())
         self.assertNotIn("fake-github", result.stdout + result.stderr)
+
+    def test_github_token_reaches_gh_and_git_and_is_revoked_when_removed(self):
+        # Hermes strips GITHUB_TOKEN from terminal commands; gh/git need a stored copy.
+        hosts = self.driver.home / ".config/gh/hosts.yml"
+        result = self.driver.run(GITHUB_TOKEN="fake-github")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("oauth_token: fake-github", hosts.read_text())
+        self.assertEqual(stat.S_IMODE(hosts.stat().st_mode), 0o600)
+        helpers = subprocess.run(
+            ["git", "config", "--file", str(self.driver.home / ".gitconfig"),
+             "--get-all", "credential.https://github.com.helper"],
+            capture_output=True, text=True, check=True,
+        ).stdout.splitlines()
+        self.assertEqual(helpers, ["!gh auth git-credential"])
+        self.assertNotIn("fake-github", result.stdout + result.stderr)
+
+        result = self.driver.run()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(hosts.exists())

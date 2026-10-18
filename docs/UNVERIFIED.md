@@ -38,9 +38,11 @@ safe default I used. None is a silent guess.
    Complete `hermes mcp login sentry` in an interactive Railway SSH shell;
    attach `/data` first so credentials survive deployment. On a headless box,
    complete the OAuth flow by pasting back the
-   redirect URL (documented in Hermes' mcp guide). `eng` also has the `gh` CLI
-   and `GITHUB_TOKEN` in the image, providing an alternative to test if that MCP
-   fails; credentials and scopes still need verification.
+   redirect URL (documented in Hermes' mcp guide). **Updated 2026-10-18:** the
+   GitHub MCP lists its tools live. Hermes strips `GITHUB_TOKEN` from terminal
+   commands; the entrypoint now stores it for `gh` and git (see the GitHub row in
+   [ENG.md](ENG.md)). A private `desmotech/taikan` clone through that path was
+   checked in the live image.
 
 4. **`railway service list --json` and `railway volume list --json` shapes.**
    Not shown in `--help`. `bootstrap.sh` greps for the service name and for

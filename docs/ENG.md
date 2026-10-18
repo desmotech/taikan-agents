@@ -94,7 +94,7 @@ no fallback to another chat platform.
 | Linear | `LINEAR_API_KEY`, scoped to the `FIT` team and needed issue operations. Verify search/read without creating a test ticket. |
 | PostHog | `POSTHOG_API_KEY` must be a personal key with access restricted to Taikan, not the ingestion/project key. The endpoint uses `readonly=true`. Verify project identity and a bounded aggregate query. |
 | Railway | Remote MCP at `https://mcp.railway.com` with OAuth. Authorize only the intended Taikan projects. Project API tokens are not accepted by this endpoint. |
-| GitHub | Existing `GITHUB_TOKEN`, read-only repository content and Actions access. Verify the target repo and one CI run. |
+| GitHub | `GITHUB_TOKEN`, read-only repository content and Actions access. The MCP sends it as a header. Hermes strips it from terminal commands, so on boot the entrypoint stores it in `~/.config/gh/hosts.yml` (0600) and points git's `https://github.com` credential helper at `gh`; `gh` and `git clone` then work from the terminal. Removing the variable deletes the stored copy on the next boot. Verify the target repo and one CI run. |
 
 Railway does not need a CLI installed in the agent image with this transport.
 Attach a persistent volume at `/data` before signing in. In the running
