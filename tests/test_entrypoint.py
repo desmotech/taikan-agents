@@ -144,6 +144,52 @@ class EntrypointTests(unittest.TestCase):
         self.assertFalse(self.driver.launched())
         self.assertNotIn("fake-github", result.stdout + result.stderr)
 
+    MOBILE = {
+        "BOT": "mobile",
+        "TAIKAN_MOBILE_GITHUB_TOKEN": "fake-mobile-github",
+        "TAIKAN_MOBILE_ASC_KEY_ID": "fake-asc-key-id",
+        "TAIKAN_MOBILE_ASC_ISSUER_ID": "fake-asc-issuer",
+        "TAIKAN_MOBILE_ASC_KEY_P8_BASE64": "ZmFrZS1wOA==",
+        "TAIKAN_MOBILE_PLAY_SERVICE_ACCOUNT_JSON_BASE64": "e30=",
+    }
+
+    def test_mobile_bot_requires_every_scoped_credential(self):
+        for name in self.MOBILE.keys() - {"BOT"}:
+            with self.subTest(name=name):
+                result = self.driver.run(**(self.MOBILE | {name: None}))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"mobile bot requires {name}", result.stderr)
+                self.assertFalse(self.driver.launched())
+
+    def test_mobile_bot_refuses_broader_credentials(self):
+        for name in ("GITHUB_TOKEN", "EXPO_TOKEN", "ASC_KEY_ID", "TAIKAN_RELEASE_ASSISTANT_TOKEN"):
+            with self.subTest(name=name):
+                result = self.driver.run(**self.MOBILE, **{name: "fake-broad"})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"mobile bot refuses unexpected privileged variable {name}", result.stderr)
+                self.assertFalse(self.driver.launched())
+                self.assertNotIn("fake-broad", result.stdout + result.stderr)
+
+    def test_release_bot_refuses_mobile_credentials(self):
+        result = self.driver.run(
+            BOT="release", TAIKAN_RELEASE_API_URL="https://example.invalid",
+            TAIKAN_RELEASE_ASSISTANT_TOKEN="fake-release", TAIKAN_MOBILE_GITHUB_TOKEN="fake-mobile",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("release bot refuses unexpected privileged variable TAIKAN_MOBILE_GITHUB_TOKEN", result.stderr)
+        self.assertFalse(self.driver.launched())
+
+    def test_mobile_bot_starts_with_credentials_available_to_its_client(self):
+        result = self.driver.run(**self.MOBILE)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(self.driver.launched())
+        env = self.driver.read_state(".env").splitlines()
+        for name, value in self.MOBILE.items():
+            if name != "BOT":
+                self.assertIn(f"{name}={value}", env)
+                self.assertNotIn(value, result.stdout + result.stderr)
+        self.assertEqual(self.driver.read_state("SOUL.md"), self.driver.source_asset("souls/mobile.md"))
+
     def test_github_token_reaches_gh_and_git_and_is_revoked_when_removed(self):
         # Hermes strips GITHUB_TOKEN from terminal commands; gh/git need a stored copy.
         hosts = self.driver.home / ".config/gh/hosts.yml"

@@ -1,0 +1,176 @@
+# Store lanes for the mobile agent. Run only through scripts/mobile-client.py,
+# which validates inputs and passes them as TAIKAN_STORE_* variables.
+require "base64"
+require "json"
+
+opt_out_usage
+skip_docs
+
+APP_ID = "fit.taikan.app"
+RESULT_MARKER = "TAIKAN_STORE_RESULT"
+
+# Raw stdout: inside a Fastfile, plain `puts` is fastlane's timestamped log action.
+def emit(result)
+  $stdout.puts("#{RESULT_MARKER} #{JSON.generate(result)}")
+  $stdout.flush
+end
+
+platform :ios do
+  before_all do
+    app_store_connect_api_key(
+      key_id: ENV.fetch("TAIKAN_MOBILE_ASC_KEY_ID"),
+      issuer_id: ENV.fetch("TAIKAN_MOBILE_ASC_ISSUER_ID"),
+      key_content: ENV.fetch("TAIKAN_MOBILE_ASC_KEY_P8_BASE64"),
+      is_key_content_base64: true,
+      set_spaceship_token: true
+    )
+  end
+
+  def app
+    Spaceship::ConnectAPI::App.find(APP_ID) || UI.user_error!("#{APP_ID} not found in App Store Connect")
+  end
+
+  def describe(version)
+    version && { version: version.version_string, state: version.app_version_state || version.app_store_state,
+                 release_type: version.release_type }
+  end
+
+  # READY_FOR_REVIEW (attached to an unsent review submission) is outside fastlane's edit-version filter.
+  def ready_for_review(asc)
+    asc.get_app_store_versions(filter: { appVersionState: "READY_FOR_REVIEW", platform: "IOS" }).first
+  end
+
+  lane :status do
+    asc = app
+    # Build.all treats limit as page size and walks every page; one page is enough here.
+    builds = Spaceship::ConnectAPI.get_builds(
+      filter: { app: asc.id, processingState: "PROCESSING,FAILED,INVALID,VALID" },
+      includes: "preReleaseVersion", sort: "-uploadedDate", limit: 5
+    ).to_models
+    emit(
+      live: describe(asc.get_live_app_store_version),
+      pending_release: describe(asc.get_pending_release_app_store_version),
+      in_review: describe(asc.get_in_review_app_store_version),
+      ready_for_review: describe(ready_for_review(asc)),
+      editable: describe(asc.get_edit_app_store_version),
+      recent_builds: builds.map do |build|
+        { version: build.app_version, build: build.version, processing_state: build.processing_state,
+          expired: build.expired, uploaded_at: build.uploaded_date }
+      end
+    )
+  end
+
+  # Creates the App Store version (or reuses an editable one with the same version
+  # string), attaches the build, sets What's New for every existing localization,
+  # and submits it. Apple releases it to all users automatically once approved.
+  # deliver also removes App Review attachments from that version.
+  lane :release do
+    version = ENV.fetch("TAIKAN_STORE_VERSION")
+    build_number = ENV.fetch("TAIKAN_STORE_BUILD")
+    notes = JSON.parse(ENV.fetch("TAIKAN_STORE_NOTES"))
+    asc = app
+
+    in_review = asc.get_in_review_app_store_version
+    UI.user_error!("Version #{in_review.version_string} is already in review") if in_review
+    ready = ready_for_review(asc)
+    UI.user_error!("Version #{ready.version_string} is attached to an unsent review submission") if ready
+    editable = asc.get_edit_app_store_version
+    if editable&.app_version_state == "WAITING_FOR_REVIEW"
+      UI.user_error!("Version #{editable.version_string} is already waiting for review")
+    end
+    # deliver would otherwise rename that draft to the requested version string.
+    if editable && editable.version_string != version
+      UI.user_error!("Editable version #{editable.version_string} exists; release that version or remove the draft in App Store Connect")
+    end
+    pending = asc.get_pending_release_app_store_version
+    UI.user_error!("Version #{pending.version_string} is approved and pending release") if pending
+
+    build = Spaceship::ConnectAPI::Build.all(app_id: asc.id, version: version, build_number: build_number,
+                                             platform: "IOS", limit: 1).first
+    UI.user_error!("Build #{version} (#{build_number}) is not in App Store Connect") unless build
+    unless build.processing_state == "VALID" && !build.expired
+      UI.user_error!("Build #{version} (#{build_number}) is #{build.expired ? 'expired' : build.processing_state}")
+    end
+
+    source = editable || asc.get_live_app_store_version
+    UI.user_error!("No existing App Store version to copy localizations from") unless source
+    locales = source.get_app_store_version_localizations.map(&:locale)
+    unknown = notes.keys - locales - ["default"]
+    UI.user_error!("Unknown locales #{unknown.join(', ')}; the app has #{locales.join(', ')}") unless unknown.empty?
+    release_notes = locales.to_h { |locale| [locale, notes.fetch(locale, notes["default"])] }
+    missing = release_notes.select { |_, text| text.to_s.strip.empty? }.keys
+    UI.user_error!("What's New is missing for #{missing.join(', ')}") unless missing.empty?
+
+    empty = File.expand_path("empty-metadata")
+    FileUtils.mkdir_p(empty)
+    upload_to_app_store(
+      app_identifier: APP_ID,
+      platform: "ios",
+      app_version: version,
+      build_number: build_number,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      metadata_path: empty,
+      screenshots_path: empty,
+      languages: locales,
+      release_notes: release_notes,
+      submit_for_review: true,
+      automatic_release: true,
+      phased_release: false,
+      run_precheck_before_submit: false,
+      # Fail inside the client's 280s budget instead of deliver's multi-minute backoff.
+      version_check_wait_retry_limit: 2,
+      force: true
+    )
+    emit(submitted: true, version: version, build: build_number, locales: locales,
+         release: "automatic to all users after Apple approval")
+  end
+end
+
+platform :android do
+  def play_key
+    Base64.strict_decode64(ENV.fetch("TAIKAN_MOBILE_PLAY_SERVICE_ACCOUNT_JSON_BASE64"))
+  end
+
+  def track_codes(track)
+    google_play_track_version_codes(package_name: APP_ID, track: track, json_key_data: play_key).map(&:to_s)
+  end
+
+  lane :status do
+    emit(
+      production: { version_codes: track_codes("production"),
+                    release_names: google_play_track_release_names(package_name: APP_ID, track: "production",
+                                                                   json_key_data: play_key) },
+      internal: { version_codes: track_codes("internal"),
+                  release_names: google_play_track_release_names(package_name: APP_ID, track: "internal",
+                                                                 json_key_data: play_key) }
+    )
+  end
+
+  # Promotes the release holding this version code from the internal track to
+  # production at 100%. The binary is the one EAS Submit already uploaded.
+  # If Play requires the change to be sent for review manually, the commit fails
+  # instead of silently staging it as "changes not sent for review".
+  lane :release do
+    version_code = ENV.fetch("TAIKAN_STORE_VERSION_CODE")
+    UI.user_error!("Version code #{version_code} is already in production") if track_codes("production").include?(version_code)
+    UI.user_error!("Version code #{version_code} is not on the internal track") unless track_codes("internal").include?(version_code)
+
+    upload_to_play_store(
+      package_name: APP_ID,
+      json_key_data: play_key,
+      track: "internal",
+      track_promote_to: "production",
+      track_promote_release_status: "completed",
+      version_code: version_code.to_i,
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      rescue_changes_not_sent_for_review: false
+    )
+    emit(promoted: true, version_code: version_code, track: "production", rollout: "100%")
+  end
+end

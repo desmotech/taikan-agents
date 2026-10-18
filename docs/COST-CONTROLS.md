@@ -32,15 +32,15 @@ local ledger.
 | --- | --- | --- | --- |
 | Activation | Off | Off | `TAIKAN_AGENT_ENABLED` must equal `true` |
 | Spending | Provider workspace limit | Provider workspace limit | Anthropic Console, dedicated key; no local cap |
-| Model | Opus 5 | Sonnet 5; ops/release Haiku 4.5 | Config plus reviewed proxy allowlist |
+| Model | Opus 5 | Sonnet 5; ops/release/mobile Haiku 4.5 | Config plus reviewed proxy allowlist |
 | Auxiliary side-calls | Haiku 4.5 | Own main model; compression on Haiku 4.5 | Config `auxiliary.*` |
 | Model calls per Slack message | 40 | 12 | Hermes `agent.max_turns` |
 | Context | 120,000 tokens | 64,000 tokens | `model.context_length` |
 | Output per call, including thinking | 16,384 tokens | 4,096 tokens | Config, plus a 16,384 clamp at the network boundary |
 | Compression | At 80,000 tokens | At 24,000 tokens | Explicit threshold, bounded retained tail |
 | Reasoning effort | high | low | Config |
-| Run budget | 1800 s | 180 s | Soft wrap-up notice at 80%, **not** a hard stop |
-| Terminal command timeout | 600 s | 180 s | Config |
+| Run budget | 1800 s | 180 s (mobile 600 s) | Soft wrap-up notice at 80%, **not** a hard stop |
+| Terminal command timeout | 600 s | 180 s (mobile 300 s for store submissions) | Config |
 | File reads / tool output | 40,000 chars, 800 lines | 12,000 chars, 200 lines | Config |
 | Background review / curator | Off | Off | Config and automatic-review runtime hook |
 | Scheduled dispatch | Off | Off | Runtime scheduler hook; persisted jobs are preserved |

@@ -27,6 +27,8 @@ RUN pip install --no-cache-dir websockets -e "/opt/hermes-agent[slack,mcp,anthro
 
 FROM python:3.11-slim
 
+ARG FASTLANE_VERSION=2.241.1
+
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -35,7 +37,11 @@ RUN apt-get update \
     gh \
     nodejs \
     npm \
+    ruby \
     tini \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential ruby-dev \
+  && gem install fastlane -v "${FASTLANE_VERSION}" --no-document \
+  && apt-get purge -y --auto-remove build-essential ruby-dev \
   && rm -rf /var/lib/apt/lists/*
 
 # /data/.npm-global lets the unprivileged agent install npm CLIs on the volume.
@@ -54,11 +60,13 @@ COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /opt/hermes-agent /opt/hermes-agent
 
 WORKDIR /app
-COPY scripts/entrypoint.sh scripts/release-client.py scripts/cost_guard.py scripts/runtime_policy.py /app/scripts/
-RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/release-client.py
+COPY scripts/entrypoint.sh scripts/release-client.py scripts/mobile-client.py scripts/cost_guard.py scripts/runtime_policy.py /app/scripts/
+RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/release-client.py /app/scripts/mobile-client.py
 # taikan-agents: per-bot identity and config, selected at boot by $BOT
 COPY souls /app/souls
 COPY config /app/config
+# mobile: store lanes, run from a scratch copy by scripts/mobile-client.py
+COPY fastlane /app/fastlane
 
 ENTRYPOINT ["tini", "--"]
 CMD ["/app/scripts/entrypoint.sh"]

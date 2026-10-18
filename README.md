@@ -30,15 +30,17 @@ is never touched.
 | `scout` | Claude Sonnet 5 | weekly competitor + industry report | scaffold |
 | `analyst` | Claude Sonnet 5 | PostHog instrumentation quality, aggregate only | scaffold |
 | `release` | Claude Haiku 4.5 | branded-app status, owner-safe preflight, and approved-operation nudge | available |
+| `mobile` | Claude Haiku 4.5 | Taikan app: production store builds, OTA updates, and App Store/Play production releases | soul/config drafted; not deployed |
 
 ## Layout
 
 ```
 souls/      one SOUL.md per agent          -> ${HERMES_HOME}/SOUL.md
 config/     one config.yaml per agent      -> ${HERMES_HOME}/config.yaml
-scripts/    bootstrap/deploy/logs plus restricted release API client and entrypoint
+scripts/    bootstrap/deploy/logs plus restricted release and mobile clients and entrypoint
+fastlane/   App Store and Play lanes for the mobile bot (run via scripts/mobile-client.py)
 docs/       RESEARCH.md RUNBOOK.md UNVERIFIED.md
-Dockerfile  upstream's, plus COPY souls/ and config/
+Dockerfile  upstream's, plus COPY souls/, config/, fastlane/, and a pinned fastlane install
 ```
 
 Automatic cron dispatch is disabled. Existing schedules remain stored for

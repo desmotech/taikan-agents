@@ -138,6 +138,50 @@ human request; the backend rechecks the stored approval and dispatches the
 protected workflow. Store review and public release remain manual console
 actions recorded by an administrator.
 
+### Mobile release operator
+
+Deploy with `scripts/bootstrap.sh mobile`. It requires exactly these
+variables beyond the common ones; the entrypoint refuses to start without them
+and refuses Expo, signing, general GitHub, and infrastructure credentials:
+
+| Variable | Source and scope |
+|---|---|
+| `TAIKAN_MOBILE_GITHUB_TOKEN` | Fine-grained PAT, `desmotech/taikan-mobile` only, **Actions: read and write** |
+| `TAIKAN_MOBILE_ASC_KEY_ID`, `TAIKAN_MOBILE_ASC_ISSUER_ID` | App Store Connect → Users and Access → Integrations → Team Keys; role **App Manager** (needed to submit for review) |
+| `TAIKAN_MOBILE_ASC_KEY_P8_BASE64` | That key's `.p8`, one line: `base64 -i AuthKey_XXXX.p8 \| tr -d '\n'` |
+| `TAIKAN_MOBILE_PLAY_SERVICE_ACCOUNT_JSON_BASE64` | Dedicated GCP service account JSON, one line base64. Invite it in Play Console → Users and permissions with access to `fit.taikan.app` only: **Release to production** and **Release apps to testing tracks** |
+
+Use dedicated keys, not the ones EAS Submit holds, so they can be revoked
+independently. The agent has a terminal, so it can read these values; the
+client allowlist and soul limit what it does with them, not what it could do.
+An App Manager team key can act on every app in the team.
+
+`scripts/mobile-client.py` is the bot's only release path:
+
+- `build` and `ota` dispatch taikan-mobile's `eas-build.yml` (production
+  profile, auto-submit) and `eas-update.yml` (production or preview branch with
+  the matching environment), always from `main`, and refuse while a dispatched
+  run of the same workflow is queued or running. A green build run means the
+  build is queued on EAS; completion and store upload are visible only in the
+  Expo dashboard and then in `store-status`.
+- `store-status`, `ios-release`, and `android-release` run the lanes in
+  `fastlane/Fastfile` (fastlane pinned in the Dockerfile). `ios-release`
+  creates or reuses the App Store version, attaches a `VALID` build, sets
+  What's New for every existing localization, and submits for review with
+  automatic release to all users on approval; it refuses when another version
+  is editable, attached to an unsent submission, in review, or pending release,
+  and deliver removes any App Review attachments on the version.
+  `android-release` promotes an internal-track release to production at 100%
+  and refuses codes already in production. When Play requires a production
+  change to be sent for review manually, the lane fails without committing;
+  finish that promotion in Play Console.
+
+The bot confirms every action in Slack before running it. Cancelling a review
+submission, halting a rollout, and editing listings stay manual console
+actions. Play release notes are not set; EAS uploads none. EAS submits Android
+builds to the internal track as drafts, so they reach production without
+internal-tester exposure.
+
 Manage: `railway ssh --service <bot> -- hermes cron list|pause <id>|resume <id>|run <id>|remove <id>`.
 
 ## Logs and a stuck gateway

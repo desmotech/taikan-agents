@@ -221,23 +221,43 @@ if [[ -z "${BOT:-}" ]]; then
   echo "[bootstrap] ERROR: BOT is unset. Set BOT to one of: $(ls "${BOT_ASSETS_DIR}/souls" 2>/dev/null | sed 's/\.md$//' | tr '\n' ' ')" >&2
   exit 1
 fi
-if [[ "$BOT" == "release" ]]; then
-  [[ -n "${TAIKAN_RELEASE_API_URL:-}" && -n "${TAIKAN_RELEASE_ASSISTANT_TOKEN:-}" ]] || {
-    echo "[bootstrap] ERROR: release bot requires TAIKAN_RELEASE_API_URL and TAIKAN_RELEASE_ASSISTANT_TOKEN." >&2
-    exit 1
-  }
+# Narrow bots get only their own scoped credentials; refuse anything broader,
+# plus the other narrow bot's credentials (glob passed as $1).
+refuse_privileged_variables() {
+  local other_bot="$1"
   for key in $(compgen -e); do
     case "$key" in
-      EXPO_TOKEN|APPLE_*|ASC_*|GOOGLE_*|GCP_*|FIREBASE_*|GITHUB_TOKEN|GH_TOKEN|DATABASE_URL|PGPASSWORD|POSTGRES_*|RAILWAY_API_TOKEN|RAILWAY_TOKEN|R2_*|CLOUDFLARE_*|AWS_*|SENTRY_*|LINEAR_*|POSTHOG_*)
+      EXPO_TOKEN|APPLE_*|ASC_*|GOOGLE_*|GCP_*|FIREBASE_*|GITHUB_TOKEN|GH_TOKEN|DATABASE_URL|PGPASSWORD|POSTGRES_*|RAILWAY_API_TOKEN|RAILWAY_TOKEN|R2_*|CLOUDFLARE_*|AWS_*|SENTRY_*|LINEAR_*|POSTHOG_*|$other_bot)
         if [[ -n "${!key:-}" ]]; then
-          echo "[bootstrap] ERROR: release bot refuses unexpected privileged variable ${key}." >&2
+          echo "[bootstrap] ERROR: ${BOT} bot refuses unexpected privileged variable ${key}." >&2
           exit 1
         fi
         ;;
     esac
   done
+}
+if [[ "$BOT" == "release" ]]; then
+  [[ -n "${TAIKAN_RELEASE_API_URL:-}" && -n "${TAIKAN_RELEASE_ASSISTANT_TOKEN:-}" ]] || {
+    echo "[bootstrap] ERROR: release bot requires TAIKAN_RELEASE_API_URL and TAIKAN_RELEASE_ASSISTANT_TOKEN." >&2
+    exit 1
+  }
+  refuse_privileged_variables 'TAIKAN_MOBILE_*'
   append_if_set TAIKAN_RELEASE_API_URL
   append_if_set TAIKAN_RELEASE_ASSISTANT_TOKEN
+fi
+if [[ "$BOT" == "mobile" ]]; then
+  MOBILE_VARIABLES=(TAIKAN_MOBILE_GITHUB_TOKEN TAIKAN_MOBILE_ASC_KEY_ID TAIKAN_MOBILE_ASC_ISSUER_ID
+    TAIKAN_MOBILE_ASC_KEY_P8_BASE64 TAIKAN_MOBILE_PLAY_SERVICE_ACCOUNT_JSON_BASE64)
+  for key in "${MOBILE_VARIABLES[@]}"; do
+    [[ -n "${!key:-}" ]] || {
+      echo "[bootstrap] ERROR: mobile bot requires ${key}." >&2
+      exit 1
+    }
+  done
+  refuse_privileged_variables 'TAIKAN_RELEASE_*'
+  for key in "${MOBILE_VARIABLES[@]}"; do
+    append_if_set "$key"
+  done
 fi
 # Hermes strips GITHUB_TOKEN/GH_TOKEN from terminal subprocesses, so gh and git
 # would run unauthenticated. Store the token where gh reads it and route git's

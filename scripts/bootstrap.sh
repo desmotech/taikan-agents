@@ -115,6 +115,11 @@ case "$BOT" in
   analyst) set_secret POSTHOG_API_KEY "POSTHOG_API_KEY (personal API key, read scopes)";;
   release) set_plain TAIKAN_RELEASE_API_URL "TAIKAN_RELEASE_API_URL (https://api.taikan.fit)"
            set_secret TAIKAN_RELEASE_ASSISTANT_TOKEN "TAIKAN_RELEASE_ASSISTANT_TOKEN (backend-scoped, read/preflight/nudge only)";;
+  mobile)  set_secret TAIKAN_MOBILE_GITHUB_TOKEN "TAIKAN_MOBILE_GITHUB_TOKEN (fine-grained PAT: desmotech/taikan-mobile only, Actions read/write)"
+           set_plain TAIKAN_MOBILE_ASC_KEY_ID "TAIKAN_MOBILE_ASC_KEY_ID (App Store Connect team key, App Manager)"
+           set_plain TAIKAN_MOBILE_ASC_ISSUER_ID "TAIKAN_MOBILE_ASC_ISSUER_ID"
+           set_secret TAIKAN_MOBILE_ASC_KEY_P8_BASE64 "TAIKAN_MOBILE_ASC_KEY_P8_BASE64 (one-line base64 of the .p8)"
+           set_secret TAIKAN_MOBILE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 "TAIKAN_MOBILE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 (one-line base64; fit.taikan.app release permissions only)";;
 esac
 
 log "Source: GitHub $GITHUB_REPO@$GIT_BRANCH (auto-deploy on push)"

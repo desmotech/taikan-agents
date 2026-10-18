@@ -63,7 +63,7 @@ rotate the Railway variable second - in that order.
 |--------------------|--------------------|--------------|---------------|--------------------|
 | Claude Opus 5      | `claude-opus-5`    | $5           | $25           | eng                |
 | Claude Sonnet 5    | `claude-sonnet-5`  | $2           | $10           | product, analyst, marketing, scout |
-| Claude Haiku 4.5   | `claude-haiku-4-5` | $1           | $5            | ops, release, eng auxiliary side-calls, all compression |
+| Claude Haiku 4.5   | `claude-haiku-4-5` | $1           | $5            | ops, release, mobile, eng auxiliary side-calls, all compression |
 
 Cache writes bill at 2x the input rate and cache reads at 0.1x. The guard
 admits only these reviewed model IDs. Real Hermes client routing is

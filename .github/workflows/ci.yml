@@ -64,9 +64,19 @@ jobs:
             command -v hermes
             test -x /app/scripts/entrypoint.sh
             test -x /app/scripts/release-client.py
+            test -x /app/scripts/mobile-client.py
             test -s /app/souls/eng.md
             test -s /app/config/eng.yaml
             python -c "import anthropic, mcp, slack_bolt, slack_sdk"
+          '
+
+      - name: Verify mobile store lanes load as the agent user without network
+        run: |
+          docker run --rm --network none --user hermes --entrypoint /bin/bash \
+            -e FASTLANE_SKIP_UPDATE_CHECK=1 -e FASTLANE_OPT_OUT_USAGE=YES -e LANG=C.UTF-8 \
+            taikan-agents:ci -ec '
+            cd "$(mktemp -d)" && cp -r /app/fastlane . && fastlane lanes --json > lanes.out
+            python -c "import json; out = open(\"lanes.out\").read(); lanes = json.loads(out[out.index(\"\n{\"):]); assert {p: sorted(l) for p, l in lanes.items()} == {\"ios\": [\"release\", \"status\"], \"android\": [\"release\", \"status\"]}, lanes"
           '
 
       - name: Verify spending gate against real Hermes without network
